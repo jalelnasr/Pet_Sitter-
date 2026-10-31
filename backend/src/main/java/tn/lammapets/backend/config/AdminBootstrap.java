@@ -11,8 +11,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import tn.lammapets.backend.user.Role;
 import tn.lammapets.backend.user.User;
-import tn.lammapets.backend.user.UserCredential;
-import tn.lammapets.backend.user.UserCredentialRepository;
 import tn.lammapets.backend.user.UserRepository;
 
 /**
@@ -23,7 +21,7 @@ import tn.lammapets.backend.user.UserRepository;
 public class AdminBootstrap {
 
 	@Bean
-	ApplicationRunner createAdmin(UserRepository users, UserCredentialRepository credentials, PasswordEncoder passwords,
+	ApplicationRunner createAdmin(UserRepository users, PasswordEncoder passwords,
 			@Value("${app.admin.email}") String email, @Value("${app.admin.password}") String password) {
 		return args -> {
 			if (email.isBlank() || password.isBlank()) {
@@ -31,9 +29,10 @@ public class AdminBootstrap {
 			}
 			String normalized = email.trim().toLowerCase(Locale.ROOT);
 			User admin = users.findByEmail(normalized)
-				.orElseGet(() -> users.save(new User(UUID.randomUUID().toString(), "Admin", normalized, Role.ADMIN)));
-			if (admin.getRole() == Role.ADMIN && !credentials.existsById(admin.getId())) {
-				credentials.save(new UserCredential(admin.getId(), passwords.encode(password)));
+				.orElseGet(() -> users.save(new User(UUID.randomUUID().toString(), "Admin", normalized, null, Role.ADMIN)));
+			if (admin.getRole() == Role.ADMIN && admin.getPasswordHash() == null) {
+				admin.setPasswordHash(passwords.encode(password));
+				users.save(admin);
 			}
 		};
 	}

@@ -16,8 +16,6 @@ import tn.lammapets.backend.auth.AuthDtos.UserResponse;
 import tn.lammapets.backend.common.ApiException;
 import tn.lammapets.backend.user.Role;
 import tn.lammapets.backend.user.User;
-import tn.lammapets.backend.user.UserCredential;
-import tn.lammapets.backend.user.UserCredentialRepository;
 import tn.lammapets.backend.user.UserRepository;
 
 /**
@@ -29,16 +27,12 @@ public class AuthService {
 
 	private final UserRepository users;
 
-	private final UserCredentialRepository credentials;
-
 	private final PasswordEncoder passwords;
 
 	private final TokenService tokens;
 
-	public AuthService(UserRepository users, UserCredentialRepository credentials, PasswordEncoder passwords,
-			TokenService tokens) {
+	public AuthService(UserRepository users, PasswordEncoder passwords, TokenService tokens) {
 		this.users = users;
-		this.credentials = credentials;
 		this.passwords = passwords;
 		this.tokens = tokens;
 	}
@@ -53,17 +47,15 @@ public class AuthService {
 			throw new ApiException(HttpStatus.CONFLICT,
 					"Un compte existe déjà avec cette adresse. Connectez-vous ou réinitialisez votre mot de passe.");
 		}
-		User user = users.save(new User(UUID.randomUUID().toString(), req.name().trim(), email, req.role()));
-		credentials.save(new UserCredential(user.getId(), passwords.encode(req.password())));
+		User user = users.save(new User(UUID.randomUUID().toString(), req.name().trim(), email,
+				passwords.encode(req.password()), req.role()));
 		return new AuthResponse(tokens.issue(user), UserResponse.of(user));
 	}
 
 	@Transactional(readOnly = true)
 	public AuthResponse login(LoginRequest req) {
 		User user = users.findByEmail(normalize(req.email()))
-			.filter(u -> credentials.findById(u.getId())
-				.filter(c -> passwords.matches(req.password(), c.getPasswordHash()))
-				.isPresent())
+			.filter(u -> u.getPasswordHash() != null && passwords.matches(req.password(), u.getPasswordHash()))
 			.orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "E-mail ou mot de passe incorrect."));
 		return new AuthResponse(tokens.issue(user), UserResponse.of(user));
 	}

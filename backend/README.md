@@ -9,7 +9,7 @@ Spring Boot 4, MySQL 8, Flyway, JWT. Rôles : `OWNER`, `PETSITTER`, `ADMIN`.
 ```
 
 - Base : `petsitter_db` de XAMPP (`localhost:3306`, utilisateur `root` sans mot de passe par défaut), à changer avec `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`.
-- Ce module ajoute ses tables (`products`, `product_*`, `orders`, `order_*`, `user_credentials`) et ne modifie ni `users` ni `adoption_*`.
+- Ce module ajoute ses tables (`products`, `product_*`, `orders`, `order_*`, `product_reviews`) et une colonne `password_hash` à `users` ; il ne modifie pas `adoption_*`.
 - Swagger : http://localhost:8080/swagger-ui.html
 - Admin de développement : `admin@petsitter.test` / `admin12345`
 - Le profil `dev` charge aussi le catalogue fictif de l'application (`db/dev`).
@@ -44,7 +44,7 @@ Parcours d'une commande : `CONFIRMED → PREPARING → SHIPPED → DELIVERED` ; 
 
 ## Connexion provisoire
 
-`/api/auth/*` et la table `user_credentials` servent seulement à tester la boutique : les utilisateurs sont le module
+`/api/auth/*` et la colonne `users.password_hash` servent seulement à tester la boutique : les utilisateurs sont le module
 d'un autre membre de l'équipe. Pour les remplacer, il suffit que son module fournisse un jeton JWT signé avec
 `sub` = `users.id` et `role` = `OWNER`, `PETSITTER` ou `ADMIN`. La boutique ne lit rien d'autre (et `users` pour le nom).
 

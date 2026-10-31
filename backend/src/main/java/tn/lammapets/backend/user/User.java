@@ -10,7 +10,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** Table commune à toute l'équipe : ne pas changer ses colonnes depuis ce module. */
+/** Table commune à toute l'équipe. */
 @Entity
 @Table(name = "users")
 public class User {
@@ -23,6 +23,9 @@ public class User {
 	@Column(name = "first_name")
 	private String firstName;
 
+	@Column(name = "password_hash")
+	private String passwordHash;
+
 	@Enumerated(EnumType.STRING)
 	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private Role role;
@@ -30,11 +33,16 @@ public class User {
 	protected User() {
 	}
 
-	public User(String id, String firstName, String email, Role role) {
+	public User(String id, String firstName, String email, String passwordHash, Role role) {
 		this.id = id;
 		this.firstName = firstName;
 		this.email = email;
+		this.passwordHash = passwordHash;
 		this.role = role;
+	}
+
+	public void setPasswordHash(String passwordHash) {
+		this.passwordHash = passwordHash;
 	}
 
 	public void changeRole(Role role) {
@@ -51,6 +59,10 @@ public class User {
 
 	public String getFirstName() {
 		return firstName;
+	}
+
+	public String getPasswordHash() {
+		return passwordHash;
 	}
 
 	public Role getRole() {
