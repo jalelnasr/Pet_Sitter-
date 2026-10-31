@@ -23,6 +23,9 @@ public final class AuthDtos {
 	public record LoginRequest(@NotBlank String email, @NotBlank String password) {
 	}
 
+	public record RoleRequest(@NotNull(message = "Choisissez un profil.") Role role) {
+	}
+
 	public record UserResponse(String id, String name, String email, Role role) {
 		public static UserResponse of(User u) {
 			return new UserResponse(u.getId(), u.getFirstName(), u.getEmail(), u.getRole());

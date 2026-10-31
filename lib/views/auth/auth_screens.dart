@@ -135,8 +135,11 @@ class AuthShell extends StatelessWidget {
 
 /// Un seul écran d'accès : onglets « Créer un compte » / « Se connecter » de même taille.
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key, this.initialMode = AuthMode.signup, this.showErrors = false});
+  const AuthScreen({super.key, this.initialMode = AuthMode.signup, this.showErrors = false, this.popOnSuccess = false});
   final AuthMode initialMode;
+
+  /// Revient à l'écran précédent après la connexion (ex. : le panier).
+  final bool popOnSuccess;
 
   /// Aperçu des états d'erreur (validation ou identifiants refusés).
   final bool showErrors;
@@ -190,10 +193,13 @@ class _AuthScreenState extends State<AuthScreen> {
   /// Après succès, la vue choisit l'écran suivant (la navigation reste du ressort de la vue).
   void _goNext() {
     if (!mounted) return;
-    if (vm.isSignup) {
+    if (widget.popOnSuccess) {
+      Navigator.pop(context);
+    } else if (vm.isSignup) {
       Navigator.pushNamed(context, R.role);
     } else {
-      Navigator.pushNamedAndRemoveUntil(context, R.owner, (r) => r.settings.name == R.catalog);
+      final home = R.homeFor(Deps.of(context).session.user?.role);
+      Navigator.pushNamedAndRemoveUntil(context, home, (r) => r.settings.name == R.catalog);
     }
   }
 
@@ -492,6 +498,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           validator: AuthViewModel.validateEmail,
         ),
         const SizedBox(height: 18),
+        if (vm.error != null) ...[
+          Text(vm.error!, style: LPText.bodyS.copyWith(color: LP.error)),
+          const SizedBox(height: 12),
+        ],
         PawButton(label: 'Envoyer le lien', loading: vm.loading, onPressed: _send),
         const SizedBox(height: 18),
         const InfoNote(
@@ -550,7 +560,16 @@ class RoleChoiceScreen extends StatefulWidget {
 }
 
 class _RoleChoiceScreenState extends State<RoleChoiceScreen> {
-  late final vm = RoleChoiceViewModel()..choose(widget.preview == 'chosen' ? 0 : -1);
+  late final vm = RoleChoiceViewModel(Deps.of(context).auth)..choose(widget.preview == 'chosen' ? 0 : -1);
+
+  Future<void> _continue() async {
+    if (!await vm.confirm() || !mounted) return;
+    if (vm.choice == 0) {
+      Navigator.pushNamed(context, R.addPet, arguments: true);
+    } else {
+      Navigator.pushNamedAndRemoveUntil(context, R.sitterSpace, (r) => r.settings.name == R.catalog);
+    }
+  }
 
   @override
   void dispose() {
@@ -571,7 +590,10 @@ class _RoleChoiceScreenState extends State<RoleChoiceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Bienvenue, Leïla', style: LPText.overline.copyWith(color: LP.accentInk)),
+              Text(
+                'Bienvenue, ${Deps.of(context).session.user?.name ?? 'Leïla'}',
+                style: LPText.overline.copyWith(color: LP.accentInk),
+              ),
               const SizedBox(height: 10),
               Text('Comment souhaitez-vous utiliser Pet Sitter ?', style: LPText.h1),
               const SizedBox(height: 28),
@@ -601,18 +623,15 @@ class _RoleChoiceScreenState extends State<RoleChoiceScreen> {
                 ],
               ),
               const Spacer(),
+              if (vm.error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(vm.error!, style: LPText.bodyS.copyWith(color: LP.error)),
+                ),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: vm.choice == null
-                      ? null
-                      : () => vm.choice == 0
-                            ? Navigator.pushNamed(context, R.addPet, arguments: true)
-                            : Navigator.pushNamedAndRemoveUntil(
-                                context,
-                                R.sitterSpace,
-                                (r) => r.settings.name == R.catalog,
-                              ),
+                  onPressed: vm.choice == null || vm.saving ? null : _continue,
                   child: const Text('Continuer'),
                 ),
               ),

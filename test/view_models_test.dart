@@ -99,9 +99,9 @@ void main() {
 
     test('commander vide le panier et renvoie le total', () async {
       final vm = CartViewModel(CartRepository());
-      final (total, count) = await vm.order();
-      expect(total, 84);
-      expect(count, 3);
+      final order = await vm.order();
+      expect(order!.total, 84);
+      expect(order.itemCount, 3);
       expect(vm.isEmpty, isTrue);
       vm.dispose();
     });

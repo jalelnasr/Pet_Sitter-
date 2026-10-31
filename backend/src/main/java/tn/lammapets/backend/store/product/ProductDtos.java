@@ -49,6 +49,9 @@ public final class ProductDtos {
 			@NotNull @Valid ProductRequest product) {
 	}
 
+	public record ImageResponse(String url) {
+	}
+
 	public record OptionResponse(Long id, String label, int price, int stock) {
 	}
 

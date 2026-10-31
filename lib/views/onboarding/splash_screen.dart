@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:pet_sitter/core/motion/gsap.dart';
+import 'package:pet_sitter/app/dependencies.dart';
 import 'package:pet_sitter/app/routes.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
 import 'package:pet_sitter/core/theme/ph_icons.dart';
@@ -29,7 +30,9 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!widget.autoNext || _next != null) return;
     final wait = reducedMotion(context) ? 1200 : 3000;
     _next = Timer(Duration(milliseconds: wait), () {
-      if (mounted) Navigator.pushReplacementNamed(context, R.onboarding);
+      if (!mounted) return;
+      final session = Deps.of(context).session;
+      Navigator.pushReplacementNamed(context, session.isLoggedIn ? R.homeFor(session.user?.role) : R.onboarding);
     });
   }
 

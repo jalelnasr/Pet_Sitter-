@@ -671,7 +671,7 @@ class _SitterAccount extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Amira B.', style: LPText.h2),
+                      Text(Deps.of(context).session.user?.name ?? 'Amira B.', style: LPText.h2),
                       Text('Pet sitter · La Marsa', style: LPText.bodyS),
                       const SizedBox(height: 6),
                       const FictifBadge(),
@@ -690,6 +690,18 @@ class _SitterAccount extends StatelessWidget {
             icon: PhosphorIconsRegular.tag,
             title: 'Services et tarifs',
             onTap: () => Navigator.pushNamed(context, R.services),
+          ),
+          LPListTile(
+            icon: PhosphorIconsRegular.tag,
+            title: 'Boutique',
+            subtitle: 'Nourriture et accessoires',
+            onTap: () => Navigator.pushNamed(context, R.shop),
+          ),
+          LPListTile(
+            icon: PhosphorIconsRegular.shoppingBag,
+            title: 'Mes commandes',
+            subtitle: 'Suivi et annulation',
+            onTap: () => Navigator.pushNamed(context, R.myOrders),
           ),
           LPListTile(icon: PhosphorIconsRegular.sealCheck, title: 'Vérifications', subtitle: '3 sur 3 effectuées'),
           LPListTile(

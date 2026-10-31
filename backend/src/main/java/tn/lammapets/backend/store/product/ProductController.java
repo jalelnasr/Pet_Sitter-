@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import tn.lammapets.backend.store.product.ProductDtos.CreateProductRequest;
 import tn.lammapets.backend.store.product.ProductDtos.PageResponse;
@@ -23,8 +24,17 @@ public class ProductController {
 
 	private final ProductService service;
 
-	public ProductController(ProductService service) {
+	private final ProductImageService images;
+
+	public ProductController(ProductService service, ProductImageService images) {
 		this.service = service;
+		this.images = images;
+	}
+
+	@PostMapping("/api/admin/product-images")
+	@ResponseStatus(HttpStatus.CREATED)
+	ProductDtos.ImageResponse uploadImage(@RequestParam MultipartFile file) {
+		return new ProductDtos.ImageResponse(images.store(file));
 	}
 
 	@GetMapping("/api/products")

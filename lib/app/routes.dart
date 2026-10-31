@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:pet_sitter/data/sources/mock_data.dart';
+import 'package:pet_sitter/data/sources/session.dart';
 import 'package:pet_sitter/view_models/auth_view_model.dart';
 import 'package:pet_sitter/models/models.dart';
 import 'package:pet_sitter/views/account/account_screens.dart';
+import 'package:pet_sitter/views/admin/admin_screens.dart';
 import 'package:pet_sitter/views/auth/auth_screens.dart';
 import 'package:pet_sitter/views/booking/booking_screens.dart';
 import 'package:pet_sitter/views/catalog/catalog_screen.dart';
@@ -16,6 +18,7 @@ import 'package:pet_sitter/views/owner/pet_screens.dart';
 import 'package:pet_sitter/views/owner/search_screen.dart';
 import 'package:pet_sitter/views/owner/sitter_profile_screen.dart';
 import 'package:pet_sitter/data/sources/mock_shop_data.dart';
+import 'package:pet_sitter/views/shop/orders_screens.dart';
 import 'package:pet_sitter/views/shop/shop_screens.dart';
 import 'package:pet_sitter/views/sitter/sitter_screens.dart';
 
@@ -42,6 +45,9 @@ class R {
   static const product = '/product';
   static const cart = '/cart';
   static const orderDone = '/order-done';
+  static const myOrders = '/my-orders';
+  static const loginReturn = '/login-return';
+  static const admin = '/admin';
   static const bookings = '/bookings';
   static const messages = '/messages';
   static const account = '/account';
@@ -93,6 +99,13 @@ class R {
   static const sitterCalendar = '/sitter-calendar';
   static const sitterMessages = '/sitter-messages';
   static const sitterAccount = '/sitter-account';
+
+  /// Écran d'accueil selon le profil du compte connecté.
+  static String homeFor(UserRole? role) => switch (role) {
+    UserRole.admin => admin,
+    UserRole.petsitter => sitterSpace,
+    _ => owner,
+  };
 }
 
 Route<dynamic>? onGenerateRoute(RouteSettings settings) {
@@ -121,7 +134,10 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     R.shop => const OwnerShell(initialTab: OwnerTab.shop),
     R.product => ProductScreen(product: a is Product ? a : Shop.products.first),
     R.cart => const CartScreen(),
-    R.orderDone => a is (int, int) ? OrderDoneScreen(total: a.$1, count: a.$2) : const OrderDoneScreen(),
+    R.orderDone => a is Order ? OrderDoneScreen(order: a) : const OrderDoneScreen(),
+    R.myOrders => const MyOrdersScreen(),
+    R.loginReturn => const AuthScreen(initialMode: AuthMode.login, popOnSuccess: true),
+    R.admin => const AdminShell(),
     R.bookings => const OwnerShell(initialTab: OwnerTab.bookings),
     R.messages => const OwnerShell(initialTab: OwnerTab.messages),
     R.account => const OwnerShell(initialTab: OwnerTab.account),

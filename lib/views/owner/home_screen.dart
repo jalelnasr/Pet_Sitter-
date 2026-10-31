@@ -283,22 +283,23 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: Text('Pour Simba, Kiwi et Bulle · livraison offerte dès 80 DT', style: LPText.bodyS),
           ),
-          SizedBox(
-            height: 274,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: LP.pagePadding,
-              itemCount: 4,
-              separatorBuilder: (_, _) => const SizedBox(width: 12),
-              itemBuilder: (_, i) {
-                final items = vm.recommendedProducts;
-                return SizedBox(
-                  width: 168,
-                  child: ProductCard(product: items[i], onAdd: () => vm.addToCart(items[i])),
-                );
-              },
+          if (vm.recommendedProducts.isNotEmpty)
+            SizedBox(
+              height: 274,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: LP.pagePadding,
+                itemCount: vm.recommendedProducts.take(4).length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (_, i) {
+                  final items = vm.recommendedProducts;
+                  return SizedBox(
+                    width: 168,
+                    child: ProductCard(product: items[i], onAdd: () => vm.addToCart(items[i])),
+                  );
+                },
+              ),
             ),
-          ),
 
           // Comment ça marche
           const SizedBox(height: 30),

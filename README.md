@@ -12,6 +12,19 @@ flutter run -d chrome  # aperçu web (cadre de téléphone sur grand écran)
 flutter test           # tests des ViewModels
 ```
 
+### Boutique branchée sur le backend
+
+Par défaut, l'application utilise ses données de démonstration. Pour la boutique réelle, démarrer d'abord
+le backend (`backend/README.md`), puis :
+
+```bash
+flutter run -d chrome --dart-define=USE_API=true
+# Sur un téléphone : ajouter --dart-define=API_URL=http://<ip-du-pc>:8080/api
+```
+
+Dans ce mode, les comptes, le catalogue, le panier, les commandes et l'espace admin passent par l'API.
+Les animaux, les sitters, les réservations et les messages restent des données de démonstration.
+
 L'app s'ouvre sur l'**écran de démarrage** puis le guide ; un retour arrière mène au **sommaire des maquettes** : chaque écran et chacun de ses états y est accessible,
 et « Lancer le parcours complet » déroule guide → inscription → ajout d'un animal → recherche →
 profil sitter → demande de réservation → suivi.
@@ -59,6 +72,8 @@ test/                    tests des ViewModels (flutter test)
 | 9 | Réservations, profil, favoris, notifications, aide, paramètres | `views/account/account_screens.dart` |
 | 10 | Espace pet sitter : tableau de bord, disponibilités, tarifs | `views/sitter/sitter_screens.dart` |
 | 11 | Boutique : catalogue (espèces, catégories, recherche), fiche produit, panier, commande | `views/shop/shop_screens.dart` |
+| 12 | Mes commandes : suivi et annulation | `views/shop/orders_screens.dart` |
+| 13 | Espace admin : commandes et produits | `views/admin/admin_screens.dart` |
 | — | Guide de style | `views/catalog/style_guide_screen.dart` |
 
 Navigation propriétaire : Accueil · Boutique · Réservations · Messages · Profil (`views/owner/owner_shell.dart`).
@@ -156,4 +171,4 @@ Toutes les animations se coupent si le système demande de réduire les animatio
 - Photos : Unsplash, chargées par URL. Les remplacer par des assets ou un CDN avant publication.
 - La carte des résultats est une illustration (`CustomPainter`), à remplacer par un vrai
   fournisseur de cartes.
-- Les données sont fictives (`lib/data/sources/`) ; seul le backend de la boutique existe (`backend/`, pas encore branché à l'app). Pour brancher un serveur, voir le guide, section 9.
+- Les données sont fictives (`lib/data/sources/`) ; seule la boutique a un backend (`backend/`, activé avec `USE_API=true`). Pour brancher un autre domaine, voir le guide, section 9.

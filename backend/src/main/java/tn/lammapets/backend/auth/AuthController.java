@@ -5,6 +5,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import tn.lammapets.backend.auth.AuthDtos.AuthResponse;
 import tn.lammapets.backend.auth.AuthDtos.LoginRequest;
 import tn.lammapets.backend.auth.AuthDtos.RegisterRequest;
+import tn.lammapets.backend.auth.AuthDtos.RoleRequest;
 import tn.lammapets.backend.auth.AuthDtos.UserResponse;
 
 import jakarta.validation.Valid;
@@ -36,6 +38,11 @@ public class AuthController {
 	@PostMapping("/login")
 	AuthResponse login(@Valid @RequestBody LoginRequest req) {
 		return auth.login(req);
+	}
+
+	@PutMapping("/me/role")
+	AuthResponse changeRole(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody RoleRequest req) {
+		return auth.changeRole(jwt.getSubject(), req);
 	}
 
 	@GetMapping("/me")

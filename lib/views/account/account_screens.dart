@@ -194,7 +194,7 @@ class AccountScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(vm.fullName, style: LPText.h2),
+                        Text(Deps.of(context).session.user?.name ?? vm.fullName, style: LPText.h2),
                         Text('La Marsa, Tunis · membre depuis 2025', style: LPText.bodyS),
                         const SizedBox(height: 4),
                         TextButton(
@@ -246,6 +246,12 @@ class AccountScreen extends StatelessWidget {
               onTap: () => Navigator.pushNamed(context, R.myPets),
             ),
             LPListTile(
+              icon: PhosphorIconsRegular.shoppingBag,
+              title: 'Mes commandes',
+              subtitle: 'Suivi et annulation',
+              onTap: () => Navigator.pushNamed(context, R.myOrders),
+            ),
+            LPListTile(
               icon: PhosphorIconsRegular.heart,
               title: 'Favoris',
               subtitle: '${vm.favoritesCount} pet sitters',
@@ -276,8 +282,12 @@ class AccountScreen extends StatelessWidget {
               title: 'Se déconnecter',
               danger: true,
               trailing: const SizedBox.shrink(),
-              onTap: () =>
-                  Navigator.pushNamedAndRemoveUntil(context, R.onboarding, (r) => r.settings.name == R.catalog),
+              onTap: () async {
+                await Deps.of(context).auth.logOut();
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(context, R.onboarding, (r) => r.settings.name == R.catalog);
+                }
+              },
             ),
             const SizedBox(height: 20),
             Center(child: Text('Pet Sitter · version 1.0.0', style: LPText.bodyS.copyWith(fontSize: 12.5))),

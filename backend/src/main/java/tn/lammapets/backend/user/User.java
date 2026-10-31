@@ -37,6 +37,10 @@ public class User {
 		this.role = role;
 	}
 
+	public void changeRole(Role role) {
+		this.role = role;
+	}
+
 	public String getId() {
 		return id;
 	}

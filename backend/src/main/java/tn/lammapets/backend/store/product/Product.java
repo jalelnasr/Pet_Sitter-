@@ -129,6 +129,11 @@ public class Product {
 		}
 	}
 
+	public void setReviewStats(BigDecimal rating, int reviews) {
+		this.rating = rating;
+		this.reviews = reviews;
+	}
+
 	public void deactivate() {
 		active = false;
 		updatedAt = Instant.now();

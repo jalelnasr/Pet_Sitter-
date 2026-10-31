@@ -1,5 +1,6 @@
 import 'package:pet_sitter/core/mvvm/view_model.dart';
 import 'package:pet_sitter/data/repositories/auth_repository.dart';
+import 'package:pet_sitter/data/sources/session.dart';
 
 enum AuthMode { signup, login }
 
@@ -78,10 +79,16 @@ class AuthViewModel extends ViewModel {
   Future<bool> signInWith(String provider) async {
     _socialLoading = provider;
     notify();
-    await _auth.signInWith(provider);
-    _socialLoading = null;
-    notify();
-    return true;
+    try {
+      await _auth.signInWith(provider);
+      return true;
+    } on AuthException catch (e) {
+      _banner = e.message;
+      return false;
+    } finally {
+      _socialLoading = null;
+      notify();
+    }
   }
 
   // ———— Règles de validation (utilisées par les champs du formulaire)
@@ -122,18 +129,53 @@ class ForgotPasswordViewModel extends ViewModel {
   String? get sentTo => _sentTo;
   bool get sent => _sentTo != null;
 
+  String? _error;
+  String? get error => _error;
+
   Future<void> send(String email) async {
     _loading = true;
+    _error = null;
     notify();
-    await _auth.sendResetLink(email);
+    try {
+      await _auth.sendResetLink(email);
+      _sentTo = email.trim();
+    } on AuthException catch (e) {
+      _error = e.message;
+    }
     _loading = false;
-    _sentTo = email.trim();
     notify();
   }
 }
 
 /// Choix du profil après l'inscription : 0 = je cherche une garde, 1 = je deviens pet sitter.
 class RoleChoiceViewModel extends ViewModel {
+  RoleChoiceViewModel([this._auth]);
+
+  final AuthRepository? _auth;
+
+  bool _saving = false;
+  bool get saving => _saving;
+
+  String? _error;
+  String? get error => _error;
+
+  /// Enregistre le profil choisi. Renvoie `true` si l'écran peut passer à la suite.
+  Future<bool> confirm() async {
+    _saving = true;
+    _error = null;
+    notify();
+    try {
+      await _auth?.chooseRole(_choice == 1 ? UserRole.petsitter : UserRole.owner);
+      return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      return false;
+    } finally {
+      _saving = false;
+      notify();
+    }
+  }
+
   int? _choice;
   int? get choice => _choice;
   bool get canContinue => _choice != null;

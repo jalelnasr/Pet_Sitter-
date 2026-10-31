@@ -5,8 +5,10 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -24,8 +26,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
@@ -113,6 +117,18 @@ class LammaPetsBackendApplicationTests {
 		mvc.perform(json(post("/api/auth/register"), null,
 				"{\"name\":\"X\",\"email\":\"x@test.tn\",\"password\":\"motdepasse1\",\"role\":\"ADMIN\"}"))
 			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void ownerAndSitterCanSwitchRoleButNeverBecomeAdmin() throws Exception {
+		String owner = register("OWNER");
+		String res = mvc.perform(json(put("/api/auth/me/role"), owner, "{\"role\":\"PETSITTER\"}")).andExpect(status().isOk())
+			.andExpect(jsonPath("$.user.role").value("PETSITTER")).andReturn().getResponse().getContentAsString();
+		String fresh = JsonPath.read(res, "$.token");
+		mvc.perform(auth(get("/api/auth/me"), fresh)).andExpect(jsonPath("$.role").value("PETSITTER"));
+		mvc.perform(json(put("/api/auth/me/role"), fresh, "{\"role\":\"ADMIN\"}")).andExpect(status().isBadRequest());
+		mvc.perform(json(put("/api/auth/me/role"), admin(), "{\"role\":\"OWNER\"}")).andExpect(status().isBadRequest());
+		mvc.perform(json(put("/api/auth/me/role"), null, "{\"role\":\"OWNER\"}")).andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -215,6 +231,93 @@ class LammaPetsBackendApplicationTests {
 		mvc.perform(auth(get("/api/orders/" + id), admin())).andExpect(status().isOk());
 		mvc.perform(auth(get("/api/orders/me"), sitter)).andExpect(jsonPath("$.totalItems").value(0));
 		mvc.perform(auth(get("/api/orders/me"), owner)).andExpect(jsonPath("$.items[0].id").value(id));
+	}
+
+	private RequestBuilder upload(byte[] bytes, String token) {
+		return multipart("/api/admin/product-images").file(image(bytes)).header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+	}
+
+	private static MockMultipartFile image(byte[] bytes) {
+		return new MockMultipartFile("file", "../../pirate.svg", "image/svg+xml", bytes);
+	}
+
+	@Test
+	void adminUploadsAPhotoAndAnyoneCanSeeIt() throws Exception {
+		byte[] png = { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3 };
+		String res = mvc.perform(upload(png, admin()))
+			.andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+		String url = JsonPath.read(res, "$.url");
+		// Le nom et le type viennent du serveur, pas de ce que déclare le client.
+		assertThat(url).startsWith("/api/images/").endsWith(".png").doesNotContain("pirate");
+		byte[] served = mvc.perform(get(url)).andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+		assertThat(served).isEqualTo(png);
+	}
+
+	@Test
+	void uploadRefusesOtherFilesAndOtherRoles() throws Exception {
+		byte[] png = { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A };
+		byte[] svg = "<svg onload=alert(1)>".getBytes();
+		String admin = admin();
+		mvc.perform(upload(svg, admin)).andExpect(status().isBadRequest());
+		mvc.perform(upload(new byte[0], admin))
+			.andExpect(status().isBadRequest());
+		byte[] tooBig = new byte[5 * 1024 * 1024 + 1];
+		System.arraycopy(png, 0, tooBig, 0, png.length);
+		mvc.perform(upload(tooBig, admin))
+			.andExpect(status().isBadRequest());
+		mvc.perform(multipart("/api/admin/product-images").file(image(png))).andExpect(status().isUnauthorized());
+		mvc.perform(upload(png, register("OWNER")))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void onlyCustomersWhoReceivedAProductCanReviewIt() throws Exception {
+		String productId = "avis-" + UUID.randomUUID().toString().substring(0, 8);
+		String created = mvc.perform(json(post("/api/admin/products"), admin(), """
+				{"id":"%s","product":{"name":"Avis","brand":"M","category":"jouets","species":["chat"],
+				 "description":"D","options":[{"label":"U","price":10,"stock":5}],"packKind":"object",
+				 "color":"#0F5534","tint":"#E3F1E7","icon":"cat"}}""".formatted(productId)))
+			.andReturn().getResponse().getContentAsString();
+		int option = JsonPath.read(created, "$.options[0].id");
+		String url = "/api/products/" + productId + "/reviews";
+		String review = "{\"rating\":4,\"comment\":\" Très bien \"}";
+
+		String buyer = register("OWNER");
+		mvc.perform(json(put(url + "/me"), null, review)).andExpect(status().isUnauthorized());
+		mvc.perform(json(put(url + "/me"), buyer, review)).andExpect(status().isConflict());
+
+		String res = order(buyer, option, 1).andReturn().getResponse().getContentAsString();
+		int id = JsonPath.read(res, "$.id");
+		mvc.perform(json(put(url + "/me"), buyer, review)).andExpect(status().isConflict());
+		mvc.perform(auth(get(url + "/me"), buyer)).andExpect(jsonPath("$.canReview").value(false));
+		String admin = admin();
+		for (String s : List.of("PREPARING", "SHIPPED", "DELIVERED")) {
+			mvc.perform(json(patch("/api/admin/orders/" + id + "/status"), admin, "{\"status\":\"" + s + "\"}"));
+		}
+
+		mvc.perform(json(put(url + "/me"), buyer, "{\"rating\":6}")).andExpect(status().isBadRequest());
+		mvc.perform(json(put(url + "/me"), buyer, review)).andExpect(status().isOk())
+			.andExpect(jsonPath("$.comment").value("Très bien")).andExpect(jsonPath("$.authorName").value("Test"));
+		mvc.perform(json(put(url + "/me"), buyer, "{\"rating\":2}")).andExpect(status().isOk());
+		mvc.perform(get(url)).andExpect(status().isOk()).andExpect(jsonPath("$.count").value(1))
+			.andExpect(jsonPath("$.average").value(2.0)).andExpect(jsonPath("$.items[0].email").doesNotExist());
+		mvc.perform(get("/api/products/" + productId)).andExpect(jsonPath("$.reviews").value(1))
+			.andExpect(jsonPath("$.rating").value(2.0));
+
+		String other = register("PETSITTER");
+		mvc.perform(json(put(url + "/me"), other, review)).andExpect(status().isConflict());
+		mvc.perform(auth(delete(url + "/me"), other)).andExpect(status().isNotFound());
+
+		String listed = mvc.perform(get(url)).andReturn().getResponse().getContentAsString();
+		int reviewId = JsonPath.read(listed, "$.items[0].id");
+		mvc.perform(auth(delete("/api/admin/reviews/" + reviewId), buyer)).andExpect(status().isForbidden());
+		mvc.perform(auth(delete("/api/admin/reviews/" + reviewId), admin)).andExpect(status().isNoContent());
+		mvc.perform(get("/api/products/" + productId)).andExpect(jsonPath("$.reviews").value(0));
+	}
+
+	@Test
+	void demoCatalogueHasNoInventedRatings() throws Exception {
+		mvc.perform(get("/api/products/croq-chat")).andExpect(jsonPath("$.reviews").value(0));
 	}
 
 	@Test

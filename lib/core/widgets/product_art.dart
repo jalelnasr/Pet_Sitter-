@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'package:pet_sitter/data/sources/api_config.dart';
 import 'package:pet_sitter/models/models.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
 
-/// Visuel produit dessiné : sachet, boîte, pot ou objet, aux couleurs du produit.
-/// Remplaçable par de vraies photos produit avant mise en production.
+/// Photo du produit ; sans photo (ou si elle ne charge pas), visuel dessiné :
+/// sachet, boîte, pot ou objet, aux couleurs du produit.
 class ProductArt extends StatelessWidget {
   const ProductArt(this.product, {super.key, this.size = 140, this.radius = 22, this.showBg = true});
   final Product product;
@@ -14,6 +15,25 @@ class ProductArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final image = product.imageUrl;
+    if (image == null) return _drawn();
+    return Semantics(
+      image: true,
+      label: '${product.name}, ${product.brand}',
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.network(
+          ApiConfig.imageUrl(image),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _drawn(),
+        ),
+      ),
+    );
+  }
+
+  Widget _drawn() {
     final p = product;
     // centre de l'étiquette selon la forme
     // centre de l'étiquette blanche selon la forme (icône puis marque dessous)

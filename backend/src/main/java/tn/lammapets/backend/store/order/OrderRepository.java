@@ -11,6 +11,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
 	Page<Order> findByUserId(String userId, Pageable pageable);
 
+	@Query("select count(i) > 0 from OrderItem i where i.productId = :productId and i.order.user.id = :userId and i.order.status = :status")
+	boolean hasProductWithStatus(String userId, String productId, OrderStatus status);
+
 	@Query("select o from Order o where :status is null or o.status = :status")
 	Page<Order> search(OrderStatus status, Pageable pageable);
 

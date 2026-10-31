@@ -16,7 +16,19 @@ class HomeViewModel extends ViewModel {
   }) : _sitters = sitters,
        _pets = pets,
        _shop = shop,
-       _cart = cart;
+       _cart = cart {
+    _loadShop();
+  }
+
+  /// Les suggestions sont facultatives : sans catalogue, l'accueil les masque simplement.
+  Future<void> _loadShop() async {
+    try {
+      await _shop.load();
+      notify();
+    } on ShopException {
+      // La page Boutique affiche l'erreur et propose de réessayer.
+    }
+  }
 
   final SitterRepository _sitters;
   final PetRepository _pets;
@@ -39,7 +51,10 @@ class HomeViewModel extends ViewModel {
 
   List<Product> get recommendedProducts => _shop.recommendedFor(pets.map((p) => p.species));
 
-  void addToCart(Product p) => _cart.add(p, p.options.first);
+  void addToCart(Product p) {
+    final option = p.firstAvailable;
+    if (option != null) _cart.add(p, option);
+  }
 
   void setFilter(Species? s) {
     _filter = s;
