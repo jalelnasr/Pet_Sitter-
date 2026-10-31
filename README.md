@@ -156,4 +156,4 @@ Toutes les animations se coupent si le système demande de réduire les animatio
 - Photos : Unsplash, chargées par URL. Les remplacer par des assets ou un CDN avant publication.
 - La carte des résultats est une illustration (`CustomPainter`), à remplacer par un vrai
   fournisseur de cartes.
-- Les données sont fictives (`lib/data/sources/`) ; aucun backend. Pour en brancher un, voir le guide, section 9.
+- Les données sont fictives (`lib/data/sources/`) ; seul le backend de la boutique existe (`backend/`, pas encore branché à l'app). Pour brancher un serveur, voir le guide, section 9.

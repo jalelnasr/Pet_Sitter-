@@ -1,0 +1,7 @@
+package tn.lammapets.backend.user;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface UserCredentialRepository extends JpaRepository<UserCredential, String> {
+
+}
