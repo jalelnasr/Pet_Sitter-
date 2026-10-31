@@ -1,0 +1,4 @@
+com\petsitter\adoption\AdoptionImageServingTest.class
+com\petsitter\adoption\AdoptionServiceTest.class
+com\petsitter\adoption\AdoptionListingRepositoryTest.class
+com\petsitter\adoption\AdoptionMatchingServiceTest.class
