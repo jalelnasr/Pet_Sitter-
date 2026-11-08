@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:pet_sitter/adoption/adoption_routes.dart';
+import 'package:pet_sitter/petsitter/petsitter_routes.dart';
 import 'package:pet_sitter/data/sources/mock_data.dart';
 import 'package:pet_sitter/events/event_routes.dart';
 import 'package:pet_sitter/view_models/auth_view_model.dart';
@@ -21,7 +22,7 @@ import 'package:pet_sitter/data/sources/mock_shop_data.dart';
 import 'package:pet_sitter/views/shop/shop_screens.dart';
 import 'package:pet_sitter/views/sitter/sitter_screens.dart';
 
-/// Noms de routes (utilisables aussi en URL web : /#/search, /#/sitter…).
+/// Noms de routes (utilisables aussi en URL web : /#/search, /#/sitterâ€¦).
 class R {
   R._();
   static const catalog = '/';
@@ -72,7 +73,7 @@ class R {
   static const services = '/services';
   static const styleGuide = '/style-guide';
 
-  // Aperçus d'états et d'interactions (captures du sommaire)
+  // AperÃ§us d'Ã©tats et d'interactions (captures du sommaire)
   static const homePlace = '/home-place';
   static const searchFilters = '/search-filters';
   static const searchDog = '/search-dog';
@@ -100,12 +101,14 @@ class R {
 }
 
 Route<dynamic>? onGenerateRoute(RouteSettings settings) {
-  // Routes secondaires du module Adoption (fiche, formulaire, mes demandes, états vides).
+  // Routes secondaires du module Adoption (fiche, formulaire, mes demandes, Ã©tats vides).
   final adoption = onGenerateAdoptionRoute(settings);
   if (adoption != null) return adoption;
-  // Routes du module Événements (liste, fiche, réservation, mes événements…).
+  // Routes du module Ã‰vÃ©nements (liste, fiche, rÃ©servation, mes Ã©vÃ©nementsâ€¦).
   final eventRoute = onGenerateEventRoute(settings);
   if (eventRoute != null) return eventRoute;
+  final sitterRoute = onGeneratePetsitterRoute(settings);
+  if (sitterRoute != null) return sitterRoute;
   final a = settings.arguments;
   final Widget page = switch (settings.name) {
     R.catalog => const CatalogScreen(),

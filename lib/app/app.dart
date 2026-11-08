@@ -1,10 +1,11 @@
-/// L'application : thème, langue, navigation.
+﻿/// L'application : thème, langue, navigation.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:pet_sitter/app/routes.dart';
+import 'package:pet_sitter/petsitter/petsitter_screens.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
 
 class PetSitterApp extends StatelessWidget {
@@ -24,7 +25,7 @@ class PetSitterApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       // Démarrage : splash puis guide. Le sommaire des maquettes reste dessous (retour arrière).
-      initialRoute: R.splash,
+      home: const SitterListScreen(),
       onGenerateRoute: onGenerateRoute,
       // Sur grand écran (web), l'app est présentée dans un cadre de téléphone.
       builder: (context, child) {
