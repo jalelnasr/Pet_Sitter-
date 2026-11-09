@@ -9,6 +9,7 @@ export 'pet.dart';
 export 'pet_form.dart';
 export 'product.dart';
 export 'review.dart';
+export 'sales.dart';
 export 'search.dart';
 export 'sitter.dart';
 export 'sitter_space.dart';

@@ -19,6 +19,9 @@ abstract class AdminRepository {
 
   Future<List<Order>> orders({OrderStatus? status});
   Future<Order> setStatus(int id, OrderStatus status);
+
+  /// Chiffres des [days] derniers jours et commentaire rédigé par l'IA.
+  Future<SalesSummary> salesSummary(int days);
 }
 
 /// L'espace admin n'a de sens qu'avec le backend.
@@ -39,6 +42,8 @@ class MockAdminRepository implements AdminRepository {
   Future<List<Order>> orders({OrderStatus? status}) => throw _error;
   @override
   Future<Order> setStatus(int id, OrderStatus status) => throw _error;
+  @override
+  Future<SalesSummary> salesSummary(int days) => throw _error;
 }
 
 class ApiAdminRepository implements AdminRepository {
@@ -75,4 +80,9 @@ class ApiAdminRepository implements AdminRepository {
   @override
   Future<Order> setStatus(int id, OrderStatus status) async =>
       Order.fromJson(await _api.patch('/admin/orders/$id/status', {'status': status.api}) as Map<String, dynamic>);
+
+  @override
+  Future<SalesSummary> salesSummary(int days) async => SalesSummary.fromJson(
+    await _api.get('/admin/sales-summary?days=$days', const Duration(seconds: 70)) as Map<String, dynamic>,
+  );
 }

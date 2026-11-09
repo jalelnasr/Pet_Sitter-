@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:pet_sitter/data/repositories/admin_repository.dart';
+import 'package:pet_sitter/data/repositories/assistant_repository.dart';
 import 'package:pet_sitter/data/repositories/auth_repository.dart';
 import 'package:pet_sitter/data/repositories/booking_repository.dart';
 import 'package:pet_sitter/data/repositories/cart_repository.dart';
@@ -11,11 +12,13 @@ import 'package:pet_sitter/data/repositories/message_repository.dart';
 import 'package:pet_sitter/data/repositories/order_repository.dart';
 import 'package:pet_sitter/data/repositories/pet_repository.dart';
 import 'package:pet_sitter/data/repositories/review_repository.dart';
+import 'package:pet_sitter/data/repositories/sales_analysis_repository.dart';
 import 'package:pet_sitter/data/repositories/shop_repository.dart';
 import 'package:pet_sitter/data/repositories/sitter_repository.dart';
 import 'package:pet_sitter/data/repositories/sitter_space_repository.dart';
 import 'package:pet_sitter/data/sources/api_client.dart';
 import 'package:pet_sitter/data/sources/api_config.dart';
+import 'package:pet_sitter/data/sources/gemini_client.dart';
 import 'package:pet_sitter/data/sources/session.dart';
 
 class Deps extends InheritedWidget {
@@ -33,6 +36,8 @@ class Deps extends InheritedWidget {
     required this.orders,
     required this.admin,
     required this.reviews,
+    required this.assistant,
+    this.salesAnalysis = const DisabledSalesAnalysis(),
     required super.child,
   });
 
@@ -50,6 +55,7 @@ class Deps extends InheritedWidget {
     orders: MockOrderRepository(),
     admin: MockAdminRepository(),
     reviews: MockReviewRepository(),
+    assistant: MockAssistantRepository(),
     child: child,
   );
 
@@ -69,6 +75,8 @@ class Deps extends InheritedWidget {
       orders: ApiOrderRepository(api),
       admin: ApiAdminRepository(api),
       reviews: ApiReviewRepository(api),
+      assistant: ApiAssistantRepository(api),
+      salesAnalysis: GeminiSalesAnalysis(GeminiClient(apiKey: ApiConfig.geminiKey, model: ApiConfig.geminiModel)),
       child: child,
     );
   }
@@ -85,6 +93,10 @@ class Deps extends InheritedWidget {
   final OrderRepository orders;
   final AdminRepository admin;
   final ReviewRepository reviews;
+  final AssistantRepository assistant;
+
+  /// Analyse des ventes par une IA externe (Gemini), appelée directement depuis l'application.
+  final SalesAnalysisRepository salesAnalysis;
 
   static Deps of(BuildContext context) {
     final deps = context.getInheritedWidgetOfExactType<Deps>();

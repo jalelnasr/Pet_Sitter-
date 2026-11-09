@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/painting.dart' show Color;
 import 'package:pet_sitter/core/mvvm/view_model.dart';
 import 'package:pet_sitter/data/repositories/admin_repository.dart';
+import 'package:pet_sitter/data/repositories/sales_analysis_repository.dart';
+import 'package:pet_sitter/data/sources/gemini_client.dart';
 import 'package:pet_sitter/data/sources/api_client.dart';
 import 'package:pet_sitter/models/models.dart';
 
@@ -61,6 +63,98 @@ class AdminOrdersViewModel extends ViewModel {
     _updating = null;
     await load();
     return failure;
+  }
+}
+
+/// Résumé des ventes sur une période.
+class AdminSalesViewModel extends ViewModel {
+  AdminSalesViewModel(this._admin, {SalesAnalysisRepository analysis = const DisabledSalesAnalysis()})
+    : _analysis = analysis {
+    load();
+  }
+
+  static const periods = [7, 30];
+
+  final AdminRepository _admin;
+  final SalesAnalysisRepository _analysis;
+
+  /// L'analyse vient de l'IA externe (sinon : commentaire préparé par le serveur).
+  bool get usesAi => _analysis.enabled;
+  String get aiName => _analysis.providerName;
+
+  bool _analyzing = false;
+  bool get analyzing => _analyzing;
+
+  SalesAnalysis? _analysisResult;
+  SalesAnalysis? get analysis => _analysisResult;
+
+  String? _analysisError;
+  String? get analysisError => _analysisError;
+
+  /// Mêmes chiffres, même texte : on ne rappelle pas l'API (et on ne consomme pas le quota) à chaque ouverture.
+  final Map<String, SalesAnalysis> _cache = {};
+  final Map<String, Future<SalesAnalysis>> _pending = {};
+
+  Future<void> analyze() async {
+    final s = _summary;
+    if (s == null || !usesAi) return;
+    final key = GeminiSalesAnalysis.describe(s);
+    final cached = _cache[key];
+    if (cached != null) {
+      _analysisResult = cached;
+      _analysisError = null;
+      notify();
+      return;
+    }
+    _analyzing = true;
+    _analysisResult = null;
+    _analysisError = null;
+    notify();
+    try {
+      // Deux chargements rapprochés partagent la même demande au lieu d'appeler l'API deux fois.
+      final result = await _pending.putIfAbsent(key, () => _analysis.analyze(s));
+      _cache[key] = result;
+      _analysisResult = result;
+    } on GeminiException catch (e) {
+      _analysisError = e.message;
+    } finally {
+      _pending.remove(key);
+    }
+    _analyzing = false;
+    notify();
+  }
+
+  int _days = 7;
+  int get days => _days;
+
+  bool _loading = true;
+  bool get loading => _loading;
+
+  String? _error;
+  String? get error => _error;
+
+  SalesSummary? _summary;
+  SalesSummary? get summary => _summary;
+
+  Future<void> load() async {
+    _loading = true;
+    _error = null;
+    notify();
+    try {
+      _summary = await _admin.salesSummary(_days);
+    } on ApiException catch (e) {
+      _error = e.message;
+    }
+    _loading = false;
+    notify();
+    await analyze();
+  }
+
+  void setDays(int d) {
+    if (d == _days) return;
+    _days = d;
+    _summary = null;
+    load();
   }
 }
 

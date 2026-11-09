@@ -23,6 +23,15 @@ flutter run -d chrome --dart-define=USE_API=true
 ```
 
 Dans ce mode, les comptes, le catalogue, le panier, les commandes et l'espace admin passent par l'API.
+
+Analyse des ventes par Gemini (API externe appelée directement par l'application, onglet admin « Ventes ») :
+
+```bash
+flutter run -d chrome --dart-define=USE_API=true --dart-define=GEMINI_API_KEY=<votre clé>
+```
+
+La clé se crée sur Google AI Studio. Ne jamais l'écrire dans le code ni dans Git : elle reste lisible dans
+l'application compilée, donc utiliser une clé de test avec limite de dépense. Seuls des chiffres agrégés sont envoyés.
 Les animaux, les sitters, les réservations et les messages restent des données de démonstration.
 
 L'app s'ouvre sur l'**écran de démarrage** puis le guide ; un retour arrière mène au **sommaire des maquettes** : chaque écran et chacun de ses états y est accessible,

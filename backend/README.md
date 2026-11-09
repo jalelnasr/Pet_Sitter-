@@ -29,6 +29,7 @@ et au besoin `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `CORS_ORIGINS`.
 | `GET /api/products/{id}` | public | fiche produit |
 | `GET /api/products/{id}/reviews` | public | avis d'un produit |
 | `GET, PUT, DELETE /api/products/{id}/reviews/me` | connecté | mon avis (après réception du produit) |
+| `POST /api/assistant` | connecté | assistant d'achat (20 questions par heure) |
 | `POST /api/orders` | connecté | passer commande |
 | `GET /api/orders/me`, `/api/orders/{id}` | propriétaire ou admin | suivi |
 | `POST /api/orders/{id}/cancel` | propriétaire ou admin | annuler avant préparation |
@@ -37,6 +38,7 @@ et au besoin `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `CORS_ORIGINS`.
 | `POST /api/admin/product-images` | admin | envoyer une photo (`file` : JPG, PNG ou WebP, 5 Mo maximum) |
 | `GET /api/images/{nom}` | public | afficher une photo |
 | `DELETE /api/admin/reviews/{id}` | admin | supprimer un avis |
+| `GET /api/admin/sales-summary?days=7` | admin | résumé des ventes (1 à 90 jours) et commentaire par IA |
 | `GET /api/admin/orders?status` | admin | toutes les commandes |
 | `PATCH /api/admin/orders/{id}/status` | admin | faire avancer une commande |
 
@@ -47,6 +49,24 @@ Parcours d'une commande : `CONFIRMED → PREPARING → SHIPPED → DELIVERED` ; 
 `/api/auth/*` et la colonne `users.password_hash` servent seulement à tester la boutique : les utilisateurs sont le module
 d'un autre membre de l'équipe. Pour les remplacer, il suffit que son module fournisse un jeton JWT signé avec
 `sub` = `users.id` et `role` = `OWNER`, `PETSITTER` ou `ADMIN`. La boutique ne lit rien d'autre (et `users` pour le nom).
+
+## Assistant d'achat
+
+Le serveur envoie la question et le catalogue en stock à l'API Claude, puis vérifie la réponse : tout produit inventé ou
+épuisé est retiré, et les prix viennent de la base. La question du client est donc transmise à ce service externe.
+
+- **Avec une clé :** définir `ANTHROPIC_API_KEY` avant de lancer le backend (modèle réglable avec `ASSISTANT_MODEL`).
+  Ne jamais écrire la clé dans le code ni dans Git. Chaque question est facturée par le fournisseur.
+- **Sans clé, profil `dev` :** mode démonstration sans IA (simple recherche par espèce), signalé à l'écran.
+- **Sans clé, hors `dev` :** l'assistant répond qu'il n'est pas activé ; la boutique continue de fonctionner.
+- **Autre fournisseur :** écrire une autre implémentation de `AssistantProvider`.
+
+## Résumé des ventes
+
+Le serveur calcule tous les chiffres (chiffre d'affaires hors annulations, évolution, panier moyen, meilleures
+ventes, stocks à 5 ou moins). Seuls ces chiffres, sans aucune donnée de client, sont envoyés à l'IA, qui rédige un
+court commentaire et des actions. Même clé et même mode démonstration que l'assistant. Le texte est gardé en mémoire
+tant que les chiffres ne changent pas. Si l'IA ne répond pas, les chiffres s'affichent quand même.
 
 ## Règles
 

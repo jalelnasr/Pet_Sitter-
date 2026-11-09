@@ -169,6 +169,19 @@ class _ShopScreenState extends State<ShopScreen> {
             ),
           ).from(x: 40, delay: 0.14),
 
+          // Assistant d'achat
+          if (Deps.of(context).assistant.enabled) ...[
+            const SizedBox(height: 14),
+            Padding(
+              padding: LP.pagePadding,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, R.assistant),
+                icon: const Icon(PhosphorIconsRegular.sparkle, size: 18),
+                label: const Text('Demander conseil à l\'assistant'),
+              ),
+            ),
+          ],
+
           // Bandeau livraison
           const SizedBox(height: 20),
           const _PromoBanner().from(y: 24, scale: 0.97, delay: 0.2, duration: 0.7),

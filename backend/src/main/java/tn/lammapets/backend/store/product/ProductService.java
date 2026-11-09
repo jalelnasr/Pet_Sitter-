@@ -1,5 +1,6 @@
 package tn.lammapets.backend.store.product;
 
+import java.util.List;
 import java.util.Locale;
 
 import org.springframework.data.domain.PageRequest;
@@ -31,6 +32,17 @@ public class ProductService {
 		String pattern = (q == null || q.isBlank()) ? null : "%" + escapeLike(q.trim().toLowerCase(Locale.ROOT)) + "%";
 		PageRequest pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE), Sort.by("name"));
 		return PageResponse.of(products.search(category, species, pattern, includeInactive, pageable).map(ProductResponse::of));
+	}
+
+	/** Produits en vente avec au moins un format en stock, toujours dans le même ordre. */
+	@Transactional(readOnly = true)
+	public List<ProductResponse> inStock() {
+		return products.findAll(Sort.by("id"))
+			.stream()
+			.filter(Product::isActive)
+			.map(ProductResponse::of)
+			.filter(p -> p.options().stream().anyMatch(o -> o.stock() > 0))
+			.toList();
 	}
 
 	@Transactional(readOnly = true)

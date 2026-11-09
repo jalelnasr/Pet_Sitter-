@@ -13,6 +13,7 @@ import 'package:pet_sitter/core/widgets/product_art.dart';
 import 'package:pet_sitter/models/models.dart';
 import 'package:pet_sitter/view_models/admin_view_model.dart';
 import 'package:pet_sitter/view_models/reviews_view_model.dart';
+import 'package:pet_sitter/views/admin/sales_tab.dart';
 import 'package:pet_sitter/views/shop/orders_screens.dart';
 import 'package:pet_sitter/views/shop/reviews_section.dart';
 
@@ -38,6 +39,7 @@ class _AdminShellState extends State<AdminShell> {
   static const _items = [
     NavItem(PhosphorIconsRegular.shoppingBag, PhosphorIconsFill.shoppingBag, 'Commandes'),
     NavItem(PhosphorIconsRegular.storefront, PhosphorIconsFill.storefront, 'Produits'),
+    NavItem(PhosphorIconsRegular.chartBar, PhosphorIconsRegular.chartBar, 'Ventes'),
   ];
 
   Future<void> _logOut() async {
@@ -58,7 +60,14 @@ class _AdminShellState extends State<AdminShell> {
           IconButton(tooltip: 'Se déconnecter', icon: const Icon(PhosphorIconsRegular.signOut), onPressed: _logOut),
         ],
       ),
-      body: KeyedSubtree(key: ValueKey(_tab), child: _tab == 0 ? const _OrdersTab() : const _ProductsTab()),
+      body: KeyedSubtree(
+        key: ValueKey(_tab),
+        child: switch (_tab) {
+          0 => const _OrdersTab(),
+          1 => const _ProductsTab(),
+          _ => const SalesTab(),
+        },
+      ),
       bottomNavigationBar: FloatingNav(items: _items, index: _tab, onTap: (i) => setState(() => _tab = i)),
     );
   }
@@ -525,6 +534,13 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                         label: Text(s.plural),
                         selected: vm.species.contains(s),
                         onSelected: (_) => vm.toggleSpecies(s),
+                        // Texte blanc sur la pastille verte quand l'espèce est cochée, sinon il est illisible.
+                        checkmarkColor: LP.white,
+                        labelStyle: LPText.body(
+                          size: 14,
+                          w: FontWeight.w600,
+                          color: vm.species.contains(s) ? LP.white : LP.ink,
+                        ),
                       ),
                   ],
                 ),
@@ -546,7 +562,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           flex: 2,
-                          child: _text('Prix DT', o.price, (v) => o.price = v, validator: _positive, digits: true),
+                          child: _text('Prix', o.price, (v) => o.price = v, validator: _positive, digits: true),
                         ),
                         const SizedBox(width: 8),
                         Expanded(

@@ -18,6 +18,7 @@ import 'package:pet_sitter/views/owner/pet_screens.dart';
 import 'package:pet_sitter/views/owner/search_screen.dart';
 import 'package:pet_sitter/views/owner/sitter_profile_screen.dart';
 import 'package:pet_sitter/data/sources/mock_shop_data.dart';
+import 'package:pet_sitter/views/shop/assistant_screen.dart';
 import 'package:pet_sitter/views/shop/orders_screens.dart';
 import 'package:pet_sitter/views/shop/shop_screens.dart';
 import 'package:pet_sitter/views/sitter/sitter_screens.dart';
@@ -46,6 +47,7 @@ class R {
   static const cart = '/cart';
   static const orderDone = '/order-done';
   static const myOrders = '/my-orders';
+  static const assistant = '/assistant';
   static const loginReturn = '/login-return';
   static const admin = '/admin';
   static const bookings = '/bookings';
@@ -136,6 +138,7 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     R.cart => const CartScreen(),
     R.orderDone => a is Order ? OrderDoneScreen(order: a) : const OrderDoneScreen(),
     R.myOrders => const MyOrdersScreen(),
+    R.assistant => const AssistantScreen(),
     R.loginReturn => const AuthScreen(initialMode: AuthMode.login, popOnSuccess: true),
     R.admin => const AdminShell(),
     R.bookings => const OwnerShell(initialTab: OwnerTab.bookings),

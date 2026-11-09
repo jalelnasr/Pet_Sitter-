@@ -12,6 +12,12 @@ class ApiConfig {
 
   static const _customUrl = String.fromEnvironment('API_URL');
 
+  /// Clé de l'API Gemini, passée au lancement : `--dart-define=GEMINI_API_KEY=...`. Vide = pas d'analyse Gemini.
+  static const geminiKey = String.fromEnvironment('GEMINI_API_KEY');
+
+  /// Modèle Gemini, modifiable au lancement : `--dart-define=GEMINI_MODEL=...`.
+  static const geminiModel = String.fromEnvironment('GEMINI_MODEL', defaultValue: 'gemini-3.5-flash-lite');
+
   /// Adresse complète d'une photo envoyée par le serveur (`/api/images/…`).
   static String imageUrl(String path) => Uri.parse(baseUrl).resolve(path).toString();
 

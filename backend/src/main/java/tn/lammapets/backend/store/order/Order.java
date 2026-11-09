@@ -187,6 +187,10 @@ public class Order {
 		return items;
 	}
 
+	public int getItemCount() {
+		return items.stream().mapToInt(OrderItem::getQuantity).sum();
+	}
+
 	public List<StatusEvent> getHistory() {
 		return history;
 	}

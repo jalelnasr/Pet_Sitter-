@@ -26,8 +26,8 @@ class ApiClient {
   final Session session;
   final http.Client _client;
 
-  Future<dynamic> get(String path) => _send('GET', path);
-  Future<dynamic> post(String path, [Object? body]) => _send('POST', path, body);
+  Future<dynamic> get(String path, [Duration? timeout]) => _send('GET', path, null, timeout);
+  Future<dynamic> post(String path, [Object? body, Duration? timeout]) => _send('POST', path, body, timeout);
   Future<dynamic> put(String path, Object body) => _send('PUT', path, body);
   Future<dynamic> patch(String path, Object body) => _send('PATCH', path, body);
   Future<dynamic> delete(String path) => _send('DELETE', path);
@@ -47,13 +47,13 @@ class ApiClient {
     return items;
   }
 
-  Future<dynamic> _send(String method, String path, [Object? body]) async {
+  Future<dynamic> _send(String method, String path, [Object? body, Duration? timeout]) async {
     final request = http.Request(method, Uri.parse('$baseUrl$path'));
     if (body != null) {
       request.headers['Content-Type'] = 'application/json';
       request.body = jsonEncode(body);
     }
-    return _dispatch(request);
+    return _dispatch(request, timeout);
   }
 
   /// Envoie un fichier dans le champ `file` d'un formulaire multipart.
@@ -63,12 +63,12 @@ class ApiClient {
     return _dispatch(request);
   }
 
-  Future<dynamic> _dispatch(http.BaseRequest request) async {
+  Future<dynamic> _dispatch(http.BaseRequest request, [Duration? timeout]) async {
     final token = session.token;
     if (token != null) request.headers['Authorization'] = 'Bearer $token';
     final http.Response response;
     try {
-      response = await http.Response.fromStream(await _client.send(request)).timeout(_timeout);
+      response = await _client.send(request).then(http.Response.fromStream).timeout(timeout ?? _timeout);
     } on TimeoutException {
       throw const ApiException('Le serveur met trop de temps à répondre. Réessayez.');
     } on http.ClientException {

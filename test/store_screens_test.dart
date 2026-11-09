@@ -8,6 +8,7 @@ import 'package:pet_sitter/app/dependencies.dart';
 import 'package:pet_sitter/core/theme/ph_icons.dart';
 import 'package:pet_sitter/core/widgets/floating_nav.dart';
 import 'package:pet_sitter/data/repositories/admin_repository.dart';
+import 'package:pet_sitter/data/repositories/assistant_repository.dart';
 import 'package:pet_sitter/data/repositories/auth_repository.dart';
 import 'package:pet_sitter/data/repositories/booking_repository.dart';
 import 'package:pet_sitter/data/repositories/cart_repository.dart';
@@ -22,6 +23,7 @@ import 'package:pet_sitter/data/sources/mock_shop_data.dart';
 import 'package:pet_sitter/data/sources/session.dart';
 import 'package:pet_sitter/models/models.dart';
 import 'package:pet_sitter/views/admin/admin_screens.dart';
+import 'package:pet_sitter/views/shop/assistant_screen.dart';
 import 'package:pet_sitter/views/shop/orders_screens.dart';
 import 'package:pet_sitter/views/shop/shop_screens.dart';
 
@@ -72,6 +74,33 @@ class _FakeAdmin implements AdminRepository {
   Future<List<Order>> orders({OrderStatus? status}) async => [_order(OrderStatus.confirmed)];
   @override
   Future<Order> setStatus(int id, OrderStatus status) async => _order(status);
+  @override
+  Future<SalesSummary> salesSummary(int days) async => SalesSummary(
+    days: days,
+    orders: 12,
+    revenue: 12840,
+    changePercent: 20,
+    averageBasket: 107,
+    cancelled: 1,
+    itemsSold: 30,
+    topProducts: const [TopProductSale(name: 'Croquettes chat stérilisé', quantity: 9, revenue: 441)],
+    lowStock: const [LowStockItem(name: 'Fontaine à eau 2 L', option: '2 L', stock: 2)],
+    commentary: 'Bonne semaine, portée par les croquettes.',
+    points: const ['Réapprovisionner la fontaine.'],
+    demo: false,
+    commentaryError: null,
+  );
+}
+
+class _FakeAssistant implements AssistantRepository {
+  @override
+  bool get enabled => true;
+  @override
+  Future<AssistantReply> ask(String question) async => AssistantReply(
+    message: 'Voici pour votre chat.',
+    demo: true,
+    picks: [AssistantPick(Shop.products.first, 'Adaptées aux chats stérilisés.')],
+  );
 }
 
 class _FakeReviews implements ReviewRepository {
@@ -106,6 +135,7 @@ Widget _app(Widget home, {CartRepository? cart, ReviewRepository? reviews, Sessi
   orders: _FakeOrders(),
   admin: _FakeAdmin(),
   reviews: reviews ?? MockReviewRepository(),
+  assistant: _FakeAssistant(),
   child: MaterialApp(home: home),
 );
 
@@ -238,6 +268,31 @@ void main() {
     expect(find.text('Parfait'), findsOneWidget);
     expect(find.text('Avis des clients'), findsOneWidget);
     expect(find.byTooltip('Supprimer cet avis'), findsOneWidget);
+  });
+
+  testWidgets('assistant : affiche les produits, la raison et le mode démonstration', (tester) async {
+    final session = Session();
+    await session.open('j', const SessionUser(id: 'u', name: 'S', email: 'e', role: UserRole.owner));
+    await _show(tester, const AssistantScreen(), session: session);
+    await tester.enterText(find.byType(TextField), 'Mon chat');
+    await tester.tap(find.text('Demander'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Voici pour votre chat.'), findsOneWidget);
+    expect(find.textContaining('Mode démonstration'), findsOneWidget);
+    expect(find.text('Adaptées aux chats stérilisés.'), findsOneWidget);
+    expect(find.text(Shop.products.first.name), findsOneWidget);
+  });
+
+  testWidgets('admin : résumé des ventes avec indicateurs et analyse', (tester) async {
+    await _show(tester, const AdminShell());
+    await tester.tap(find.byIcon(PhosphorIconsRegular.chartBar));
+    await tester.pumpAndSettle();
+    expect(find.text('12\u202F840 DT'), findsOneWidget);
+    expect(find.text('↑ +20 % vs 7 jours précédents'), findsOneWidget);
+    expect(find.text('Bonne semaine, portée par les croquettes.'), findsOneWidget);
+    expect(find.textContaining('Rédigé par une IA'), findsOneWidget);
+    expect(find.text('Croquettes chat stérilisé'), findsOneWidget);
   });
 
   testWidgets('produit épuisé : ajout impossible', (tester) async {

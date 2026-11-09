@@ -321,6 +321,49 @@ class LammaPetsBackendApplicationTests {
 	}
 
 	@Test
+	void assistantNeedsAnAccountValidatesQuestionsAndLimitsCalls() throws Exception {
+		String question = "{\"question\":\"J'ai un chat st\u00e9rilis\u00e9\"}";
+		mvc.perform(json(post("/api/assistant"), null, question)).andExpect(status().isUnauthorized());
+
+		String user = register("OWNER");
+		mvc.perform(json(post("/api/assistant"), user, "{\"question\":\"  \"}")).andExpect(status().isBadRequest());
+		mvc.perform(json(post("/api/assistant"), user, question)).andExpect(status().isOk())
+			.andExpect(jsonPath("$.demo").value(true))
+			.andExpect(jsonPath("$.recommendations[0].product.species").value(org.hamcrest.Matchers.hasItem("chat")))
+			.andExpect(jsonPath("$.recommendations[0].product.options[0].price").isNumber());
+		mvc.perform(json(post("/api/assistant"), user, question)).andExpect(status().isOk());
+		mvc.perform(json(post("/api/assistant"), user, question)).andExpect(status().isOk());
+		mvc.perform(json(post("/api/assistant"), user, question)).andExpect(status().isTooManyRequests());
+		mvc.perform(json(post("/api/assistant"), register("OWNER"), question)).andExpect(status().isOk());
+	}
+
+	@Test
+	void salesSummaryCountsOnlyRealSalesAndIsForAdminsOnly() throws Exception {
+		String before = mvc.perform(auth(get("/api/admin/sales-summary").param("days", "7"), admin()))
+			.andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+		int orders = JsonPath.read(before, "$.stats.orders");
+		int revenue = JsonPath.read(before, "$.stats.revenue");
+		int cancelled = JsonPath.read(before, "$.stats.cancelled");
+
+		int option = newProduct(40, 6);
+		String user = register("OWNER");
+		order(user, option, 2).andExpect(status().isCreated());
+		String res = order(user, option, 1).andReturn().getResponse().getContentAsString();
+		int id = JsonPath.read(res, "$.id");
+		mvc.perform(auth(post("/api/orders/" + id + "/cancel"), user)).andExpect(status().isOk());
+
+		mvc.perform(auth(get("/api/admin/sales-summary").param("days", "7"), admin())).andExpect(status().isOk())
+			.andExpect(jsonPath("$.stats.orders").value(orders + 1))
+			.andExpect(jsonPath("$.stats.revenue").value(revenue + 80))
+			.andExpect(jsonPath("$.stats.cancelled").value(cancelled + 1))
+			.andExpect(jsonPath("$.stats.lowStock[?(@.stock == 4)]").exists())
+			.andExpect(jsonPath("$.demo").value(true))
+			.andExpect(jsonPath("$.commentary").isString());
+		mvc.perform(auth(get("/api/admin/sales-summary").param("days", "0"), admin())).andExpect(status().isBadRequest());
+		mvc.perform(auth(get("/api/admin/sales-summary"), user)).andExpect(status().isForbidden());
+	}
+
+	@Test
 	void cardPaymentIsRefusedUntilAGatewayExists() throws Exception {
 		mvc.perform(json(post("/api/orders"), register("OWNER"), orderBody(newProduct(10, 5), 1, "CARD")))
 			.andExpect(status().isBadRequest());
