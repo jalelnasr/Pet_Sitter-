@@ -96,6 +96,15 @@ class DemoSessionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Compte réel ouvert par le module Utilisateur : remplace l'utilisateur de démonstration.
+  void useAccount(DemoUser user) {
+    _current = user;
+    notifyListeners();
+  }
+
+  /// Déconnexion : retour au compte de démonstration par défaut.
+  void signOutAccount() => select(DemoUsers.owner);
+
   void selectById(String id) {
     for (final user in DemoUsers.all) {
       if (user.id == id) {

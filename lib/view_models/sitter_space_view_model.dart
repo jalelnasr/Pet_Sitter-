@@ -1,15 +1,36 @@
 import 'package:pet_sitter/core/mvvm/view_model.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/data/repositories/sitter_space_repository.dart';
 import 'package:pet_sitter/models/models.dart';
 
 /// Tableau de bord du sitter : demandes reçues (accepter / refuser), gardes à venir.
+///
+/// L'identité affichée (nom, photo) est celle du compte connecté ; sans compte
+/// (aperçus du sommaire), celle du sitter de démonstration.
 class SitterDashboardViewModel extends ViewModel {
-  SitterDashboardViewModel(SitterSpaceRepository repo)
+  SitterDashboardViewModel(SitterSpaceRepository repo, {AuthSession? session})
     : me = repo.me,
+      _session = session,
       requests = repo.requests(),
       upcoming = repo.upcoming();
 
+  /// Sitter de démonstration (activité d'exemple : demandes, gardes, tarifs).
   final Sitter me;
+  final AuthSession? _session;
+
+  AppUser? get user => _session?.user;
+  bool get isSignedIn => user != null;
+
+  String get firstName => user?.firstName ?? me.firstName;
+  String get fullName => user?.fullName ?? '${me.firstName} ${me.lastInitial}';
+
+  /// Photo du compte (vide = initiales) ; photo de démonstration sans compte.
+  String get photo => user == null ? me.photo : (user!.photoUrl ?? '');
+
+  String get subtitle {
+    final city = user == null ? 'La Marsa' : user!.city;
+    return city == null || city.isEmpty ? 'Pet sitter' : 'Pet sitter · $city';
+  }
   final List<SitterRequest> requests;
   final List<UpcomingCare> upcoming;
 

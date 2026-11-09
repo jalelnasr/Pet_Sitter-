@@ -7,9 +7,12 @@ import 'package:pet_sitter/app/routes.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
 import 'package:pet_sitter/core/theme/ph_icons.dart';
 import 'package:pet_sitter/core/widgets/common.dart';
+import 'package:pet_sitter/app/dependencies.dart';
+import 'package:pet_sitter/models/user.dart';
 
 /// Écran de démarrage animé. Il prend le relais de l'écran de lancement natif
-/// (même fond crème, même logo) puis enchaîne sur le guide de bienvenue.
+/// (même fond crème, même logo) puis enchaîne sur le guide de bienvenue,
+/// ou directement sur l'accueil si une session est enregistrée.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key, this.autoNext = true});
 
@@ -28,8 +31,17 @@ class _SplashScreenState extends State<SplashScreen> {
     super.didChangeDependencies();
     if (!widget.autoNext || _next != null) return;
     final wait = reducedMotion(context) ? 1200 : 3000;
+    final deps = Deps.of(context);
+    // Session restorée : on vérifie le profil auprès du serveur pendant l'animation.
+    if (deps.session.isAuthenticated) deps.auth.refreshProfile().ignore();
     _next = Timer(Duration(milliseconds: wait), () {
-      if (mounted) Navigator.pushReplacementNamed(context, R.onboarding);
+      if (!mounted) return;
+      final user = deps.session.user;
+      if (user == null) {
+        Navigator.pushReplacementNamed(context, R.onboarding);
+      } else {
+        Navigator.pushReplacementNamed(context, user.role == AppRole.petsitter ? R.sitterSpace : R.owner);
+      }
     });
   }
 

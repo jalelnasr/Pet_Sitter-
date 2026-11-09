@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:pet_sitter/core/mvvm/view_model.dart';
 import 'package:pet_sitter/data/repositories/auth_repository.dart';
+import 'package:pet_sitter/models/user.dart';
 
 enum AuthMode { signup, login }
 
@@ -31,6 +34,10 @@ class AuthViewModel extends ViewModel {
   bool _termsError = false;
   bool get termsError => _termsError;
 
+  /// Compte ouvert après un envoi réussi (sert à choisir l'écran suivant).
+  AppUser? _user;
+  AppUser? get user => _user;
+
   void switchMode(AuthMode m) {
     if (m == _mode) return;
     _mode = m;
@@ -61,13 +68,14 @@ class AuthViewModel extends ViewModel {
     notify();
     try {
       if (isSignup) {
-        await _auth.signUp(name: name, email: email, password: password);
+        final (first, last) = splitName(name);
+        _user = await _auth.signUp(firstName: first, lastName: last, email: email, password: password);
       } else {
-        await _auth.logIn(email: email, password: password);
+        _user = await _auth.logIn(email: email, password: password);
       }
       return true;
     } on AuthException catch (e) {
-      _banner = e.message;
+      _banner = _readable(e);
       return false;
     } finally {
       _loading = false;
@@ -76,12 +84,33 @@ class AuthViewModel extends ViewModel {
   }
 
   Future<bool> signInWith(String provider) async {
+    _banner = null;
     _socialLoading = provider;
     notify();
-    await _auth.signInWith(provider);
-    _socialLoading = null;
-    notify();
-    return true;
+    try {
+      await _auth.signInWith(provider);
+      return true;
+    } on AuthException catch (e) {
+      _banner = e.message;
+      return false;
+    } finally {
+      _socialLoading = null;
+      notify();
+    }
+  }
+
+  /// Message du serveur, complété par la première erreur de champ s'il y en a une.
+  static String _readable(AuthException e) {
+    final field = e.fieldErrors?.values.firstOrNull;
+    return field == null || e.message.contains(field) ? e.message : '${e.message} $field';
+  }
+
+  /// « Leïla Ben Salah » → (« Leïla », « Ben Salah »).
+  static (String, String?) splitName(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    final first = parts.first;
+    final last = parts.length > 1 ? parts.sublist(1).join(' ') : null;
+    return (first, last);
   }
 
   // ———— Règles de validation (utilisées par les champs du formulaire)
@@ -100,46 +129,175 @@ class AuthViewModel extends ViewModel {
     return null;
   }
 
-  String? validatePassword(String? v) {
-    if (v == null || v.isEmpty) return isSignup ? 'Choisissez un mot de passe.' : 'Saisissez votre mot de passe.';
-    if (!isSignup) return null;
+  /// Règle du serveur : 8 caractères minimum, dont un chiffre.
+  static String? validateNewPassword(String? v) {
+    if (v == null || v.isEmpty) return 'Choisissez un mot de passe.';
     if (v.length < 8) return 'Au moins 8 caractères, dont un chiffre.';
     if (!RegExp(r'\d').hasMatch(v)) return 'Ajoutez au moins un chiffre.';
+    if (v.length > 72) return '72 caractères au maximum.';
     return null;
+  }
+
+  String? validatePassword(String? v) {
+    if (!isSignup) return (v == null || v.isEmpty) ? 'Saisissez votre mot de passe.' : null;
+    return validateNewPassword(v);
   }
 }
 
-/// Récupération du mot de passe.
+/// Étapes de la récupération : adresse → code + nouveau mot de passe → terminé.
+enum ResetStep { email, code, done }
+
+/// Récupération du mot de passe par code à 6 chiffres envoyé par e-mail.
 class ForgotPasswordViewModel extends ViewModel {
-  /// [sentTo] : démarre directement sur la confirmation (aperçu).
-  ForgotPasswordViewModel(this._auth, {String? sentTo}) : _sentTo = sentTo;
+  /// [sentTo] : démarre directement sur l'étape du code (aperçu).
+  ForgotPasswordViewModel(this._auth, {String? sentTo})
+    : _email = sentTo?.trim() ?? '',
+      _step = sentTo == null ? ResetStep.email : ResetStep.code;
+
   final AuthRepository _auth;
+
+  ResetStep _step;
+  ResetStep get step => _step;
+
+  String _email;
+  String get email => _email;
+
+  /// Compatibilité avec les aperçus : adresse à laquelle le code a été envoyé.
+  String? get sentTo => _step == ResetStep.email ? null : _email;
+  bool get sent => _step != ResetStep.email;
 
   bool _loading = false;
   bool get loading => _loading;
 
-  String? _sentTo;
-  String? get sentTo => _sentTo;
-  bool get sent => _sentTo != null;
+  String? _error;
+  String? get error => _error;
 
-  Future<void> send(String email) async {
+  String? _info;
+  String? get info => _info;
+
+  int _resendIn = 0;
+  int get resendIn => _resendIn;
+  bool get canResend => _resendIn == 0 && !_loading;
+
+  Timer? _timer;
+
+  void _startCountdown(int seconds) {
+    _timer?.cancel();
+    _resendIn = seconds;
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      _resendIn = (_resendIn - 1).clamp(0, 9999);
+      if (_resendIn == 0) t.cancel();
+      notify();
+    });
+  }
+
+  Future<bool> _run(Future<void> Function() action) async {
     _loading = true;
+    _error = null;
     notify();
-    await _auth.sendResetLink(email);
-    _loading = false;
-    _sentTo = email.trim();
+    try {
+      await action();
+      return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      return false;
+    } finally {
+      _loading = false;
+      notify();
+    }
+  }
+
+  /// Étape 1 : demande le code.
+  Future<bool> send(String email) => _run(() async {
+    _email = email.trim();
+    final retry = await _auth.requestPasswordReset(_email);
+    _step = ResetStep.code;
+    _info = null;
+    _startCountdown(retry);
+  });
+
+  Future<bool> resend() async {
+    if (!canResend) return false;
+    return _run(() async {
+      final retry = await _auth.requestPasswordReset(_email);
+      _info = 'Un nouveau code a été envoyé.';
+      _startCountdown(retry);
+    });
+  }
+
+  /// Étape 2 : code + nouveau mot de passe. La session est ouverte en cas de succès.
+  Future<bool> reset({required String code, required String newPassword}) => _run(() async {
+    await _auth.resetPassword(email: _email, code: code, newPassword: newPassword);
+    _timer?.cancel();
+    _step = ResetStep.done;
+  });
+
+  /// Revenir à l'adresse (faute de frappe).
+  void changeEmail() {
+    _timer?.cancel();
+    _resendIn = 0;
+    _error = null;
+    _info = null;
+    _step = ResetStep.email;
     notify();
+  }
+
+  static String? validateCode(String? v) {
+    final code = v?.trim() ?? '';
+    if (code.isEmpty) return 'Saisissez le code reçu par e-mail.';
+    if (!RegExp(r'^\d{6}$').hasMatch(code)) return 'Le code contient 6 chiffres.';
+    return null;
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 }
 
 /// Choix du profil après l'inscription : 0 = je cherche une garde, 1 = je deviens pet sitter.
 class RoleChoiceViewModel extends ViewModel {
+  RoleChoiceViewModel([this._auth, this.firstName]);
+
+  final AuthRepository? _auth;
+
+  /// Prénom affiché dans « Bienvenue, … ».
+  final String? firstName;
+
   int? _choice;
   int? get choice => _choice;
-  bool get canContinue => _choice != null;
+  bool get canContinue => _choice != null && !_loading;
+
+  bool _loading = false;
+  bool get loading => _loading;
+
+  String? _error;
+  String? get error => _error;
 
   void choose(int c) {
     _choice = c < 0 ? null : c;
+    _error = null;
     notify();
+  }
+
+  /// Enregistre le rôle choisi sur le compte. Renvoie `true` si l'écran peut continuer.
+  Future<bool> confirm() async {
+    final auth = _auth;
+    if (_choice == null) return false;
+    if (auth == null) return true; // aperçu sans compte
+    _loading = true;
+    _error = null;
+    notify();
+    try {
+      await auth.changeRole(_choice == 1 ? AppRole.petsitter : AppRole.owner);
+      return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      return false;
+    } finally {
+      _loading = false;
+      notify();
+    }
   }
 }

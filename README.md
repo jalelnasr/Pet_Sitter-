@@ -17,6 +17,26 @@ et « Lancer le parcours complet » déroule guide → inscription → ajout d'u
 profil sitter → demande de réservation → suivi.
 Sur le web, chaque écran a aussi une URL directe (`/#/search`, `/#/sitter`, `/#/journal`… voir `lib/app/routes.dart`).
 
+Comptes et messagerie passent par le backend (`backend/`, port 8081) ; `--dart-define=DEMO_DATA=true`
+lance l'app avec les seules données de démonstration, sans serveur.
+
+### Tester sur un vrai téléphone Android
+
+1. Démarrer **MySQL** dans XAMPP, puis le backend : `cd backend` puis `mvn spring-boot:run`.
+   Facultatif : l'assistant IA de la messagerie (`messaging_ai/`, voir son README) sur le port 8002 ;
+   sans lui, la messagerie applique des règles locales.
+2. Brancher le téléphone en USB (mode développeur + débogage USB autorisé), puis :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\run_on_phone.ps1        # par câble USB (recommandé)
+powershell -ExecutionPolicy Bypass -File scripts\run_on_phone.ps1 -Wifi  # par le Wi-Fi
+```
+
+En USB, `adb reverse` renvoie le port 8081 du téléphone vers le PC : aucun réglage réseau ni pare-feu.
+En Wi-Fi, PC et téléphone doivent être sur le même réseau et Java doit être autorisé (port 8081)
+dans le pare-feu Windows. Comptes de démonstration : `amira@petsitter.test`, `sami@petsitter.tn`,
+`samira@petsitter.tn`… mot de passe `Demo1234`.
+
 Les captures 390 × 844 de tous les écrans sont dans `maquettes/` (ouvrir `maquettes/index.html`).
 Les fichiers `*-complet.png` montrent un écran sur toute sa hauteur de défilement.
 

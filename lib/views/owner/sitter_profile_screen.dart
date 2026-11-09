@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_sitter/views/messages/messages_screens.dart';
 
 import 'package:pet_sitter/models/models.dart';
 import 'package:pet_sitter/core/motion/gsap.dart';
@@ -555,7 +556,7 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
                   shape: const CircleBorder(),
                   child: InkWell(
                     customBorder: const CircleBorder(),
-                    onTap: () => Navigator.pushNamed(context, R.chat),
+                    onTap: () => openChatWith(context, userId: s.id, subject: 'Garde avec ${s.firstName}'),
                     child: const SizedBox(
                       width: 56,
                       height: 56,

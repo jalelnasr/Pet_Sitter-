@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pet_sitter/adoption/api/demo_session.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
 import 'package:pet_sitter/core/theme/ph_icons.dart';
 
@@ -96,6 +97,18 @@ class PetSitterSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Compte réel ouvert par le module Utilisateur (sans repasser par les comptes de test).
+  void useAccount(PetSitterUser user) {
+    _currentUser = user;
+    notifyListeners();
+  }
+
+  /// Déconnexion : retour au compte de test par défaut.
+  void signOutAccount() {
+    _currentUser = PetSitterUsers.sami;
+    notifyListeners();
+  }
+
   void selectById(String id) {
     for (final u in PetSitterUsers.all) {
       if (u.id.equalsIgnoreCase(id)) {
@@ -115,6 +128,8 @@ class PetSitterUserSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Un vrai compte est connecté : le serveur utilise ce compte, le sélecteur de test n'a plus d'effet.
+    if (AuthSession.instance.isAuthenticated) return const SizedBox.shrink();
     final session = PetSitterSession.instance;
     return ListenableBuilder(
       listenable: session,

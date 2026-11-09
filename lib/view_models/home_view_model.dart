@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' show DateTimeRange;
 import 'package:pet_sitter/core/mvvm/view_model.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/data/repositories/cart_repository.dart';
 import 'package:pet_sitter/data/repositories/pet_repository.dart';
 import 'package:pet_sitter/data/repositories/shop_repository.dart';
@@ -13,10 +14,14 @@ class HomeViewModel extends ViewModel {
     required PetRepository pets,
     required ShopRepository shop,
     required CartRepository cart,
+    AuthSession? session,
   }) : _sitters = sitters,
        _pets = pets,
        _shop = shop,
-       _cart = cart;
+       _cart = cart,
+       _session = session;
+
+  final AuthSession? _session;
 
   final SitterRepository _sitters;
   final PetRepository _pets;
@@ -29,8 +34,11 @@ class HomeViewModel extends ViewModel {
   Species? _filter = Species.chat;
   Species? get filter => _filter;
 
-  String get ownerFirstName => _pets.ownerFirstName;
-  String get ownerPhoto => _pets.ownerPhoto;
+  /// Compte connecté ; sans compte (aperçus du sommaire), la propriétaire de démonstration.
+  AppUser? get _user => _session?.user;
+  String get ownerFirstName => _user?.firstName ?? _pets.ownerFirstName;
+  String get ownerName => _user?.fullName ?? _pets.ownerFullName;
+  String get ownerPhoto => _user == null ? _pets.ownerPhoto : (_user!.photoUrl ?? '');
   List<Pet> get pets => _pets.myPets();
   List<(String, String)> get cities => _sitters.cities();
 

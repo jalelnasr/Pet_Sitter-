@@ -1,0 +1,20 @@
+# Envoi des codes « mot de passe oublié » par e-mail.
+#
+# 1. Copier ce fichier en  backend/mail.properties  (ignoré par git : il contient un secret).
+# 2. Remplir l'adresse et le mot de passe d'application ci-dessous.
+# 3. Redémarrer le backend.
+#
+# Gmail : le mot de passe habituel du compte ne marche pas. Il faut un « mot de passe
+# d'application » (16 lettres) : activer la validation en deux étapes sur le compte Google,
+# puis https://myaccount.google.com/apppasswords → créer → copier les 16 lettres ici.
+
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=votre.adresse@gmail.com
+spring.mail.password=xxxxxxxxxxxxxxxx
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+
+# Facultatif : nom affiché par la boîte de réception.
+# petsitter.mail.from=Pet Sitter <votre.adresse@gmail.com>

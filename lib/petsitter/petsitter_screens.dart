@@ -10,6 +10,7 @@ import 'package:pet_sitter/petsitter/petsitter_widgets.dart';
 import 'package:pet_sitter/core/theme/ph_icons.dart';
 import 'package:pet_sitter/views/catalog/catalog_screen.dart';
 import 'package:pet_sitter/views/owner/owner_shell.dart';
+import 'package:pet_sitter/views/messages/messages_screens.dart';
 import 'package:pet_sitter/petsitter/petsitter_ai.dart';
 
 // ============================================================================
@@ -496,7 +497,14 @@ class SitterDetailsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 12),
+                // Messagerie : ouvre (ou retrouve) la conversation avec le compte du sitter.
+                IconButton.outlined(
+                  tooltip: 'Contacter ${sitter.fullName}',
+                  onPressed: () => openChatWith(context, userId: sitter.userId, subject: 'Garde avec ${sitter.fullName}'),
+                  icon: const Icon(PhosphorIconsRegular.chatCircleDots, color: LP.primary),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: FilledButton(
                     onPressed: () {

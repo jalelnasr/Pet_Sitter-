@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/data/repositories/auth_repository.dart';
 import 'package:pet_sitter/data/repositories/booking_repository.dart';
 import 'package:pet_sitter/data/repositories/cart_repository.dart';
@@ -13,7 +14,7 @@ import 'package:pet_sitter/data/repositories/sitter_repository.dart';
 import 'package:pet_sitter/data/repositories/sitter_space_repository.dart';
 
 class Deps extends InheritedWidget {
-  const Deps({
+  Deps({
     super.key,
     required this.auth,
     required this.sitters,
@@ -23,8 +24,9 @@ class Deps extends InheritedWidget {
     required this.shop,
     required this.cart,
     required this.sitterSpace,
+    AuthSession? session,
     required super.child,
-  });
+  }) : session = session ?? AuthSession.instance;
 
   /// Version de démonstration : toutes les données sont simulées en mémoire.
   factory Deps.mock({required Widget child}) => Deps(
@@ -39,6 +41,20 @@ class Deps extends InheritedWidget {
     child: child,
   );
 
+  /// Version connectée : comptes et messagerie passent par le backend Spring Boot,
+  /// les autres domaines gardent leurs données de démonstration.
+  factory Deps.live({required Widget child}) => Deps(
+    auth: ApiAuthRepository(),
+    sitters: MockSitterRepository(),
+    pets: MockPetRepository(),
+    bookings: MockBookingRepository(),
+    messages: ApiMessageRepository(),
+    shop: MockShopRepository(),
+    cart: CartRepository(),
+    sitterSpace: MockSitterSpaceRepository(),
+    child: child,
+  );
+
   final AuthRepository auth;
   final SitterRepository sitters;
   final PetRepository pets;
@@ -47,6 +63,9 @@ class Deps extends InheritedWidget {
   final ShopRepository shop;
   final CartRepository cart;
   final SitterSpaceRepository sitterSpace;
+
+  /// Utilisateur connecté (partagé, écoutable).
+  final AuthSession session;
 
   static Deps of(BuildContext context) {
     final deps = context.getInheritedWidgetOfExactType<Deps>();

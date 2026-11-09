@@ -13,6 +13,8 @@ import 'package:http/http.dart' as http;
 
 import 'demo_session.dart';
 
+import 'package:pet_sitter/core/session/auth_session.dart';
+
 import 'package:pet_sitter/core/config/api_constants.dart';
 
 export 'package:pet_sitter/core/config/api_constants.dart';
@@ -53,6 +55,8 @@ class ApiClient {
     'Accept': 'application/json',
     'X-User-Id': DemoSessionProvider.instance.currentUser.id,
     'X-Demo-User-Id': DemoSessionProvider.instance.currentUser.id,
+    // Jeton de session : quand il est présent, le backend ignore les en-têtes de démonstration.
+    ...AuthSession.instance.authHeaders,
   };
 
   Uri _uri(String path, [Map<String, String?>? query]) {
@@ -91,6 +95,9 @@ class ApiClient {
       body: body == null ? null : jsonEncode(body),
     ),
   );
+
+  Future<dynamic> delete(String path) =>
+      _send(() => _client.delete(_uri(path), headers: _headers()));
 
   Future<dynamic> _send(Future<http.Response> Function() request) async {
     try {
@@ -141,6 +148,10 @@ class ApiClient {
     }
 
     final map = json is Map<String, dynamic> ? json : const <String, dynamic>{};
+    // Jeton refusé (expiré, mot de passe changé, compte suspendu) : la session est fermée.
+    if (response.statusCode == 401 && map['code'] == 'SESSION_EXPIRED') {
+      AuthSession.instance.expire();
+    }
     throw ApiException(
       response.statusCode,
       (map['code'] as String?) ?? 'HTTP_${response.statusCode}',

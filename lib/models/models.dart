@@ -11,3 +11,4 @@ export 'search.dart';
 export 'sitter.dart';
 export 'sitter_space.dart';
 export 'species.dart';
+export 'user.dart';

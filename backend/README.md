@@ -1,4 +1,4 @@
-# PetSitter — Adoption backend (Spring Boot + MySQL)
+# PetSitter — backend (Spring Boot + MySQL)
 
 REST API for the Adoption module only. It powers the existing Flutter Adoption UI
 (listings, adoption requests, owner decisions, minimal Admin moderation). It does
@@ -69,16 +69,19 @@ Package root: `com.petsitter`.
 
 ## 3. Database setup (XAMPP)
 
-1. Start **XAMPP → MySQL**.
-2. Open phpMyAdmin: <http://localhost/phpmyadmin>.
-3. Create a database named exactly **`petsitter_db`** with
-   `utf8mb4_unicode_ci`.
-4. Do **not** create tables manually. Hibernate uses
+1. Start **XAMPP → MySQL** (the backend cannot start without it: `Communications link failure`
+   / `Connection refused` in the logs means MySQL is not running).
+2. Nothing else to do: the database **`petsitter_db`** is created automatically on first startup
+   (`createDatabaseIfNotExist=true`, server charset — `utf8mb4` with XAMPP). You can still create
+   it yourself in phpMyAdmin with `utf8mb4_unicode_ci`.
+3. Do **not** create tables manually. Hibernate uses
    `spring.jpa.hibernate.ddl-auto=update` and creates:
 
 | Table | Purpose |
 | --- | --- |
-| `users` | Demo users (`OWNER_DEMO`, `PETSITTER_DEMO`, `ADMIN_DEMO`) |
+| `users` | Accounts (demo users `OWNER_DEMO`, `PETSITTER_DEMO`, `ADMIN_DEMO`, `sami`, `samira`, `admin` + sign-ups) |
+| `password_reset_codes` | Hashed 6-digit password reset codes |
+| `conversations`, `messages` | Messaging |
 | `adoption_listings` | Animal listings, status, publisher, location |
 | `adoption_images` | Ordered image URLs (max 6 per listing) |
 | `adoption_requests` | Adoption requests, applicant, decision, AI score |
@@ -90,7 +93,7 @@ Override with environment variables:
 
 | Variable | Default |
 | --- | --- |
-| `DB_URL` | `jdbc:mysql://localhost:3306/petsitter_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC` |
+| `DB_URL` | `jdbc:mysql://localhost:3306/petsitter_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC` |
 | `DB_USERNAME` | `root` |
 | `DB_PASSWORD` | *(empty)* |
 
@@ -125,19 +128,96 @@ does not duplicate them.
 
 ---
 
-## 5. Temporary authentication
+## 5. Authentication (User module) and messaging
 
-Spring Security and JWT are **not** implemented yet. Protected endpoints read:
+### Accounts and sessions
 
+Passwords are hashed with BCrypt (`spring-security-crypto`, no Spring Security filter
+chain). A successful sign-up, login, password reset or password change returns a
+signed JWT (HS256) valid 72 h:
+
+```json
+{ "token": "eyJ…", "tokenType": "Bearer", "expiresAt": "…", "user": { "id": "…", "fullName": "…", "role": "OWNER", … } }
 ```
-X-Demo-User-Id: OWNER_DEMO | PETSITTER_DEMO | ADMIN_DEMO
-```
 
-`DemoUserResolver` loads that user from `users`; an unknown value returns `404`,
-a missing value on a protected endpoint returns `400`.
+Send it on every request: `Authorization: Bearer <token>`.
 
-| Header | First name | Email | Role |
-| --- | --- | --- | --- |
+- `JwtAuthenticationFilter` checks the token on `/api/**`. When it is valid, the legacy
+  `X-Demo-User-Id` / `X-User-Id` headers are **replaced** by the authenticated user id, so the
+  Adoption, Events and Pet Sitting modules work with real accounts unchanged, and these headers
+  can no longer be spoofed.
+- The token embeds a fingerprint of the password: changing or resetting the password closes
+  every other session.
+- 5 wrong passwords lock the account for 15 minutes.
+- Without a token, `X-Demo-User-Id` is still accepted while `ALLOW_DEMO_HEADER=true` (default,
+  for Swagger and the demo-user selectors). Set it to `false` to require real logins everywhere.
+- The demo accounts (`OWNER_DEMO`, `PETSITTER_DEMO`, `ADMIN_DEMO`, `sami`, `samira`, `admin`)
+  receive the password `Demo1234` at startup if they have none (`DEMO_PASSWORD`, empty = off).
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `JWT_SECRET` | dev secret (warning logged) | HMAC key, 32 bytes minimum |
+| `JWT_VALIDITY_HOURS` | `72` | Session length |
+| `ALLOW_DEMO_HEADER` | `true` | Accept `X-Demo-User-Id` without a token |
+| `DEMO_PASSWORD` | `Demo1234` | Password given to demo accounts |
+| `LOG_RESET_CODES` | `true` | Print reset codes in the console when no e-mail is sent |
+| `backend/mail.properties` (or `SPRING_MAIL_*` variables) | — | SMTP account for reset e-mails, see below |
+
+### Forgot password
+
+1. `POST /api/auth/forgot-password {email}` → a 6-digit code is e-mailed (same answer whether
+   the address exists or not; one request per 60 s). **Without SMTP, the code is printed in the
+   backend console**: `[DEV] Code de réinitialisation pour … : 123456`.
+
+#### Sending the codes by real e-mail (Gmail)
+
+1. Enable 2-Step Verification on the Google account, then create an **app password** at
+   <https://myaccount.google.com/apppasswords> (16 letters). The normal account password is refused.
+2. Copy `backend/mail.properties.example` to `backend/mail.properties` (ignored by git) and set
+   `spring.mail.username` (the Gmail address) and `spring.mail.password` (the app password).
+3. Restart the backend. The startup log says `E-mail configuré : codes de réinitialisation envoyés via
+   smtp.gmail.com…`; without the file it says `E-mail non configuré`.
+
+The e-mail (text + HTML, UTF-8) is sent from the SMTP account itself. If Gmail refuses the
+credentials, the console explains it and still prints the code, so testing is never blocked.
+2. `POST /api/auth/verify-reset-code {email, code}` (optional check).
+3. `POST /api/auth/reset-password {email, code, newPassword}` → new session.
+
+Codes are stored hashed, expire after 15 minutes, allow 5 attempts and work once.
+
+### Endpoints
+
+| Method and path | Access | Purpose |
+| --- | --- | --- |
+| `POST /api/auth/register` | public | Sign up (`OWNER` by default, or `PETSITTER`) |
+| `POST /api/auth/login` | public | Log in |
+| `POST /api/auth/forgot-password`, `/verify-reset-code`, `/reset-password` | public | Password recovery |
+| `GET, PUT /api/auth/me` | signed in | Read / update my profile |
+| `PUT /api/auth/me/password` | signed in | Change password (returns a new token) |
+| `PUT /api/auth/me/role` | signed in | Switch OWNER ↔ PETSITTER |
+| `GET /api/users?q&role`, `GET /api/users/{id}` | signed in | Member directory (no e-mail or phone) |
+| `GET /api/admin/users`, `PUT /api/admin/users/{id}/status` | ADMIN | List, suspend or reactivate accounts |
+| `GET /api/conversations` | signed in | My conversations with unread counts |
+| `POST /api/conversations {participantId, subject?, message?}` | signed in | Open (or find) the conversation with a member |
+| `GET /api/conversations/unread-count` | signed in | Total unread messages |
+| `GET /api/conversations/{id}` | participant | Conversation details |
+| `GET /api/conversations/{id}/messages?afterId&beforeId&limit` | participant | Messages, oldest first (`afterId` = new ones) |
+| `POST /api/conversations/{id}/messages {content}` | participant | Send a message (2000 characters max) |
+| `DELETE /api/conversations/{id}/messages/{messageId}` | sender only | Delete a message for everyone (text hidden, kept for moderation) |
+| `POST /api/conversations/{id}/read` | participant | Mark received messages as read |
+| `GET /api/conversations/{id}/ai/replies` | participant | AI assistant: 3 suggested replies |
+
+**AI messaging assistant** (`messaging_ai/`, FastAPI on port 8002, see its README): every sent message
+is analysed. Scam or insult → `409 RISKY_MESSAGE` with the explanation and nothing is stored; the app
+asks the sender, who can resend with `confirmRisk: true`. The message is then stored with
+`risk: HIGH` and `riskReason`, shown to the recipient as a warning. If `messaging_ai` is down,
+`MessagingAiFallback` applies the same rules in Java (`MESSAGING_AI_URL`, default `http://localhost:8002`).
+
+Messaging rules: one conversation per pair of members, only the two participants can read or
+write, no message to yourself or to a suspended account. New tables: `password_reset_codes`,
+`conversations`, `messages`; new nullable columns on `users` (created by `ddl-auto=update`).
+
+--- | --- | --- | --- |
 | `OWNER_DEMO` | Amira | amira@petsitter.test | `OWNER` |
 | `PETSITTER_DEMO` | Sami | sami@petsitter.test | `PETSITTER` |
 | `ADMIN_DEMO` | Admin | admin@petsitter.test | `ADMIN` |

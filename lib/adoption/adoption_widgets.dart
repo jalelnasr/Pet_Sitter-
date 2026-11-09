@@ -11,6 +11,7 @@ import 'package:pet_sitter/models/species.dart';
 
 import 'adoption_models.dart';
 import 'api/demo_session.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
 
 class AdoptionStatusPill extends StatelessWidget {
   const AdoptionStatusPill(this.status, {super.key});
@@ -682,6 +683,8 @@ class AdoptionDemoUserSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Un vrai compte est connecté : le serveur utilise ce compte, le sélecteur de test n'a plus d'effet.
+    if (AuthSession.instance.isAuthenticated) return const SizedBox.shrink();
     final session = DemoSessionProvider.instance;
     return ListenableBuilder(
       listenable: session,

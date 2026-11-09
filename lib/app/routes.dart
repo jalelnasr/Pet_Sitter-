@@ -7,6 +7,7 @@ import 'package:pet_sitter/events/event_routes.dart';
 import 'package:pet_sitter/view_models/auth_view_model.dart';
 import 'package:pet_sitter/models/models.dart';
 import 'package:pet_sitter/views/account/account_screens.dart';
+import 'package:pet_sitter/views/account/profile_screens.dart';
 import 'package:pet_sitter/views/auth/auth_screens.dart';
 import 'package:pet_sitter/views/booking/booking_screens.dart';
 import 'package:pet_sitter/views/catalog/catalog_screen.dart';
@@ -68,6 +69,9 @@ class R {
   static const notifications = '/notifications';
   static const help = '/help';
   static const settings = '/settings';
+  static const editProfile = '/edit-profile';
+  static const changePassword = '/change-password';
+  static const newMessage = '/new-message';
   static const sitterSpace = '/sitter-space';
   static const availability = '/availability';
   static const services = '/services';
@@ -150,13 +154,20 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     R.status => BookingStatusScreen(status: a is BookingStatus ? a : BookingStatus.envoyee),
     R.statusPending => const BookingStatusScreen(status: BookingStatus.attente),
     R.statusConfirmed => const BookingStatusScreen(status: BookingStatus.confirmee),
-    R.chat => ChatScreen(asSitter: a == true),
+    R.chat => switch (a) {
+      ChatArgs args => ChatScreen(conversation: args.conversation, asSitter: args.asSitter, initialTab: args.initialTab),
+      Conversation c => ChatScreen(conversation: c),
+      _ => ChatScreen(asSitter: a == true),
+    },
+    R.newMessage => const NewMessageScreen(),
     R.journal => ChatScreen(initialTab: 1, asSitter: a == true),
     R.myPets => const MyPetsScreen(),
     R.favorites => const FavoritesScreen(),
     R.notifications => const NotificationsScreen(),
     R.help => const HelpScreen(),
     R.settings => const SettingsScreen(),
+    R.editProfile => const EditProfileScreen(),
+    R.changePassword => const ChangePasswordScreen(),
     R.sitterSpace => const SitterShell(),
     R.availability => const AvailabilityScreen(),
     R.services => const ServicesPricingScreen(),
@@ -182,9 +193,9 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     R.cartEmpty => const CartScreen(preview: 'empty'),
     R.sitterRefuse => const SitterShell(preview: 'refuse'),
     R.sitterAccepted => const SitterShell(preview: 'accepted'),
-    R.sitterCalendar => const SitterShell(initialTab: 1),
-    R.sitterMessages => const SitterShell(initialTab: 2),
-    R.sitterAccount => const SitterShell(initialTab: 3),
+    R.sitterCalendar => const AvailabilityScreen(),
+    R.sitterMessages => const SitterShell(initialTab: SitterTab.messages),
+    R.sitterAccount => const SitterShell(initialTab: SitterTab.account),
     _ => const CatalogScreen(),
   };
   return MaterialPageRoute(builder: (_) => page, settings: settings);

@@ -6,6 +6,7 @@ import 'package:pet_sitter/core/motion/gsap.dart';
 import 'package:pet_sitter/app/routes.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
 import 'package:pet_sitter/core/widgets/common.dart';
+import 'package:pet_sitter/core/widgets/member_avatar.dart';
 import 'package:pet_sitter/app/dependencies.dart';
 import 'package:pet_sitter/events/event_models.dart';
 import 'package:pet_sitter/events/event_repository.dart';
@@ -45,6 +46,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     pets: Deps.of(context).pets,
     shop: Deps.of(context).shop,
     cart: Deps.of(context).cart,
+    session: Deps.of(context).session,
   );
 
   Future<void> _pickPlace() async {
@@ -131,7 +133,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                   onTap: () => Navigator.pushNamed(context, R.notifications),
                 ),
                 const SizedBox(width: 10),
-                LPAvatar(vm.ownerPhoto, size: 44),
+                MemberAvatar(photo: vm.ownerPhoto, name: vm.ownerName, size: 44),
               ],
             ),
           ).from(y: -16, duration: 0.5),

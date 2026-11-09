@@ -6,15 +6,35 @@ import 'package:pet_sitter/core/motion/gsap.dart';
 import 'package:pet_sitter/app/routes.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
 import 'package:pet_sitter/core/widgets/common.dart';
+import 'package:pet_sitter/core/widgets/member_avatar.dart';
 import 'package:pet_sitter/app/dependencies.dart';
 import 'package:pet_sitter/core/mvvm/view_model.dart';
 import 'package:pet_sitter/view_models/sitter_space_view_model.dart';
 import 'package:pet_sitter/core/widgets/floating_nav.dart';
 import 'package:pet_sitter/core/widgets/month_calendar.dart';
 import 'package:pet_sitter/views/messages/messages_screens.dart';
+import 'package:pet_sitter/petsitter/petsitter_routes.dart';
+import 'package:pet_sitter/petsitter/petsitter_screens.dart';
+import 'package:pet_sitter/adoption/adoption_screens.dart';
+import 'package:pet_sitter/events/event_screens.dart';
+import 'package:pet_sitter/view_models/account_view_model.dart';
+import 'package:pet_sitter/views/account/account_screens.dart';
 
 // ————————————————————————————————————————————— SHELL SITTER
 
+/// Index des onglets de l'espace pet sitter.
+class SitterTab {
+  SitterTab._();
+  static const home = 0;
+  static const gardes = 1;
+  static const events = 2;
+  static const adoption = 3;
+  static const messages = 4;
+  static const account = 5;
+}
+
+/// Navigation pet sitter : Accueil, Mes gardes (module Garde), Événements, Adoption, Messages, Profil.
+/// Le calendrier de disponibilité reste accessible depuis l'accueil.
 class SitterShell extends StatefulWidget {
   const SitterShell({super.key, this.initialTab = 0, this.preview});
   final int initialTab;
@@ -31,15 +51,19 @@ class _SitterShellState extends State<SitterShell> {
 
   static const _items = [
     NavItem(PhosphorIconsRegular.squaresFour, PhosphorIconsFill.squaresFour, 'Accueil'),
-    NavItem(PhosphorIconsRegular.calendarDots, PhosphorIconsFill.calendarDots, 'Calendrier'),
+    NavItem(PhosphorIconsRegular.dog, PhosphorIconsFill.dog, 'Mes gardes'),
+    NavItem(PhosphorIconsRegular.calendarBlank, PhosphorIconsFill.calendarBlank, 'Événements'),
+    NavItem(PhosphorIconsRegular.pawPrint, PhosphorIconsFill.pawPrint, 'Adoption'),
     NavItem(PhosphorIconsRegular.chatCircleDots, PhosphorIconsFill.chatCircleDots, 'Messages', badge: true),
     NavItem(PhosphorIconsRegular.userCircle, PhosphorIconsFill.userCircle, 'Profil'),
   ];
 
   Widget _page() => switch (_tab) {
-    0 => SitterDashboardScreen(preview: _tab == widget.initialTab ? widget.preview : null),
-    1 => const AvailabilityScreen(embedded: true),
-    2 => const MessagesListScreen(asSitter: true),
+    SitterTab.home => SitterDashboardScreen(preview: _tab == widget.initialTab ? widget.preview : null),
+    SitterTab.gardes => const SitterSpaceScreen(),
+    SitterTab.events => const EventsListScreen(),
+    SitterTab.adoption => const AdoptionListScreen(),
+    SitterTab.messages => const MessagesListScreen(asSitter: true),
     _ => const _SitterAccount(),
   };
 
@@ -66,7 +90,7 @@ class SitterDashboardScreen extends StatefulWidget {
 }
 
 class _SitterDashboardScreenState extends State<SitterDashboardScreen> {
-  late final vm = SitterDashboardViewModel(Deps.of(context).sitterSpace);
+  late final vm = SitterDashboardViewModel(Deps.of(context).sitterSpace, session: Deps.of(context).session);
 
   @override
   void initState() {
@@ -105,7 +129,7 @@ class _SitterDashboardScreenState extends State<SitterDashboardScreen> {
             padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
             child: Row(
               children: [
-                LPAvatar(vm.me.photo, size: 44),
+                MemberAvatar(photo: vm.photo, name: vm.fullName, size: 44),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -114,11 +138,10 @@ class _SitterDashboardScreenState extends State<SitterDashboardScreen> {
                       Row(
                         children: [
                           Text('Espace pet sitter', style: LPText.bodyS.copyWith(fontSize: 14.5)),
-                          const SizedBox(width: 8),
-                          const FictifBadge(),
+                          if (!vm.isSignedIn) ...[const SizedBox(width: 8), const FictifBadge()],
                         ],
                       ),
-                      Text('Bonjour, Amira', style: LPText.h2),
+                      Text('Bonjour, ${vm.firstName}', style: LPText.h2),
                     ],
                   ),
                 ),
@@ -145,6 +168,15 @@ class _SitterDashboardScreenState extends State<SitterDashboardScreen> {
 
           const SizedBox(height: 28),
           SectionHeader('Demandes reçues', action: pending > 0 ? '$pending nouvelle${pending > 1 ? 's' : ''}' : null),
+          // Ces demandes, gardes et montants sont des exemples : les vraies demandes passent par « Mes gardes ».
+          if (vm.isSignedIn)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: InfoNote(
+                'Exemples de demandes. Vos vraies demandes de garde sont dans « Mes gardes et mon profil ».',
+                icon: PhosphorIconsRegular.info,
+              ),
+            ),
           for (final (i, r) in vm.requests.indexed) ...[
             _requestTile(r).from(y: 30, delay: stagger(i, start: 0.25, each: 0.1)),
             const Divider(indent: 20, endIndent: 20),
@@ -168,11 +200,19 @@ class _SitterDashboardScreenState extends State<SitterDashboardScreen> {
             subtitle: 'Accueil 35 DT / nuit · Visite 18 DT / visite',
             onTap: () => Navigator.pushNamed(context, R.services),
           ),
-          LPListTile(
-            icon: PhosphorIconsRegular.eye,
-            title: 'Voir mon profil public',
-            onTap: () => Navigator.pushNamed(context, R.sitter, arguments: vm.me),
-          ),
+          if (vm.isSignedIn)
+            LPListTile(
+              icon: PhosphorIconsRegular.handHeart,
+              title: 'Mes gardes et mon profil',
+              subtitle: 'Demandes réelles, profil public de pet sitter',
+              onTap: () => Navigator.pushNamed(context, PetsitterRoutes.sitterDashboard),
+            )
+          else
+            LPListTile(
+              icon: PhosphorIconsRegular.eye,
+              title: 'Voir mon profil public',
+              onTap: () => Navigator.pushNamed(context, R.sitter, arguments: vm.me),
+            ),
         ],
       ),
     );
@@ -649,13 +689,18 @@ class _SitterAccount extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ViewModelBuilder<SitterDashboardViewModel>(
-      create: (context) => SitterDashboardViewModel(Deps.of(context).sitterSpace),
-      builder: (context, vm) => _content(context, vm.me),
+    final deps = Deps.of(context);
+    return ViewModelBuilder<AccountViewModel>(
+      create: (context) => AccountViewModel(deps.pets, deps.sitters, auth: deps.auth, session: deps.session),
+      builder: (context, vm) => _content(context, vm, deps.sitterSpace.me),
     );
   }
 
-  Widget _content(BuildContext context, Sitter me) {
+  /// Compte connecté ; sans compte (aperçus du sommaire), le sitter de démonstration.
+  Widget _content(BuildContext context, AccountViewModel vm, Sitter demo) {
+    final user = vm.user;
+    final name = user?.fullName ?? '${demo.firstName} ${demo.lastInitial}';
+    final city = user == null ? 'La Marsa' : user.city;
     return SafeArea(
       bottom: false,
       child: ListView(
@@ -665,49 +710,92 @@ class _SitterAccount extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
             child: Row(
               children: [
-                LPAvatar(me.photo, size: 72),
+                MemberAvatar(photo: user == null ? demo.photo : (user.photoUrl ?? ''), name: name, size: 72),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Amira B.', style: LPText.h2),
-                      Text('Pet sitter · La Marsa', style: LPText.bodyS),
-                      const SizedBox(height: 6),
-                      const FictifBadge(),
+                      Text(name, style: LPText.h2),
+                      Text(city == null || city.isEmpty ? 'Pet sitter' : 'Pet sitter · $city', style: LPText.bodyS),
+                      if (user != null)
+                        TextButton(
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
+                          onPressed: () => Navigator.pushNamed(context, R.editProfile),
+                          child: const Text('Modifier mon profil'),
+                        )
+                      else ...[
+                        const SizedBox(height: 6),
+                        const FictifBadge(),
+                      ],
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          LPListTile(
-            icon: PhosphorIconsRegular.eye,
-            title: 'Mon profil public',
-            onTap: () => Navigator.pushNamed(context, R.sitter, arguments: me),
-          ),
+          if (vm.error != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: InfoNote(vm.error!, icon: PhosphorIconsRegular.warningCircle, tone: InfoTone.error),
+            ),
+          if (user != null)
+            LPListTile(
+              icon: PhosphorIconsRegular.handHeart,
+              title: 'Mes gardes et mon profil public',
+              subtitle: 'Demandes réelles, présentation, tarifs',
+              onTap: () => Navigator.pushNamed(context, PetsitterRoutes.sitterDashboard),
+            )
+          else
+            LPListTile(
+              icon: PhosphorIconsRegular.eye,
+              title: 'Mon profil public',
+              onTap: () => Navigator.pushNamed(context, R.sitter, arguments: demo),
+            ),
           LPListTile(
             icon: PhosphorIconsRegular.tag,
             title: 'Services et tarifs',
             onTap: () => Navigator.pushNamed(context, R.services),
           ),
-          LPListTile(icon: PhosphorIconsRegular.sealCheck, title: 'Vérifications', subtitle: '3 sur 3 effectuées'),
-          LPListTile(
-            icon: PhosphorIconsRegular.wallet,
-            title: 'Versements',
-            subtitle: 'Prochain versement : 135 DT le 27 oct.',
-          ),
+          if (user == null) ...[
+            const LPListTile(
+              icon: PhosphorIconsRegular.sealCheck,
+              title: 'Vérifications',
+              subtitle: '3 sur 3 effectuées',
+            ),
+            const LPListTile(
+              icon: PhosphorIconsRegular.wallet,
+              title: 'Versements',
+              subtitle: 'Prochain versement : 135 DT le 27 oct.',
+            ),
+          ],
           LPListTile(
             icon: PhosphorIconsRegular.arrowsLeftRight,
             title: 'Passer en mode propriétaire',
             subtitle: 'Faire garder mes propres animaux',
-            onTap: () => Navigator.pushNamedAndRemoveUntil(context, R.owner, (r) => r.settings.name == R.catalog),
+            onTap: vm.switching
+                ? null
+                : () async {
+                    if (!await vm.switchRole(AppRole.owner) || !context.mounted) return;
+                    Navigator.pushNamedAndRemoveUntil(context, R.owner, (r) => r.settings.name == R.catalog);
+                  },
           ),
           LPListTile(
             icon: PhosphorIconsRegular.gearSix,
             title: 'Paramètres',
+            subtitle: 'Mot de passe, langue, confidentialité',
             onTap: () => Navigator.pushNamed(context, R.settings),
           ),
+          if (user != null) ...[
+            const SizedBox(height: 8),
+            LPListTile(
+              icon: PhosphorIconsRegular.signOut,
+              title: vm.signingOut ? 'Déconnexion…' : 'Se déconnecter',
+              danger: true,
+              trailing: const SizedBox.shrink(),
+              onTap: vm.signingOut ? null : () => confirmLogOut(context, vm),
+            ),
+          ],
         ],
       ),
     );

@@ -1,0 +1,76 @@
+{
+  "_doc": [
+    "Gros mots et insultes détectés dans la messagerie. Fichier unique, copié dans backend/src/main/resources/messaging/profanity.json (un test vérifie que les deux copies sont identiques).",
+    "high = insulte ou obscénité : l'expéditeur doit confirmer, le destinataire voit « Prudence ». low = langage grossier : simple information.",
+    "Un terme finissant par * est un radical (salop* = salope, salopard…). Un terme avec des espaces est une expression (mots consécutifs).",
+    "Les accents, la casse, les lettres répétées, le tashkeel et les variantes d'alif sont ignorés automatiquement : écrire le terme sous sa forme simple.",
+    "Ne pas ajouter de mots ordinaires de l'application seuls (chien, chat, kelb, كلب, bite…) : les mettre dans une expression (sale chien, ya kelb, يا كلب)."
+  ],
+  "languages": {
+    "fr": "français",
+    "en": "anglais",
+    "ar": "arabe",
+    "tn": "tunisien",
+    "it": "italien",
+    "es": "espagnol"
+  },
+  "words": {
+    "fr": {
+      "high": [
+        "connard*", "connasse*", "pauvre con", "salop*", "salaud*", "pute", "putes", "encul*", "enfoir*",
+        "batard*", "niqu*", "nik ta mere", "ntm", "fdp", "fils de pute", "ta gueule", "tg", "ta race",
+        "va te faire foutre", "va te faire", "petasse*", "pouffiasse*", "garce*", "trouduc", "trou du cul",
+        "branleur*", "branleuse*", "couillon*", "abruti*", "debile*", "cretin*", "imbecile*", "idiot*",
+        "bouffon*", "sale chien", "sale chienne", "fils de chienne", "pede", "pedes", "pd", "gouine*",
+        "negre*", "bougnoul*", "youpin*", "tafiole*", "grognasse*"
+      ],
+      "low": [
+        "merde*", "putain*", "putin", "bordel", "chier", "fait chier", "emmerd*", "foutre", "con", "conne", "cons",
+        "couille*", "connerie*", "chiant*"
+      ]
+    },
+    "en": {
+      "high": [
+        "fuck*", "fck", "fuk*", "motherf*", "stfu", "bitch*", "bastard*", "asshole*", "arsehole*", "dick",
+        "dickhead*", "cunt*", "whore*", "slut*", "wanker*", "retard*", "faggot*", "fag", "nigg*",
+        "son of a bitch", "piece of shit", "jerk off"
+      ],
+      "low": ["shit*", "bullshit*", "wtf", "damn", "crap", "dumbass*", "pissed off"]
+    },
+    "ar": {
+      "high": [
+        "كس", "كسمك", "كسم*", "كس امك", "شرموط*", "منيوك*", "متناك*", "عاهر*", "خول", "حقير*", "يلعن*",
+        "ابن الكلب", "ابن الحرام", "ولد الحرام", "يا كلب", "يا حمار", "يا حيوان", "قحب*", "زب", "زبي",
+        "زبك", "نيك", "نيكك", "ننيك", "نيكمك", "انيك", "طيز", "طيزك"
+      ],
+      "low": ["خرا", "خره", "تفو", "زفت"]
+    },
+    "tn": {
+      "high": [
+        "9a7b*", "qa7b*", "ka7b*", "kahb*", "9ahb*", "qahb*", "gahb*",
+        "zebi", "zabi", "zeby", "zbi", "zeb", "zebek", "zbek", "zebou",
+        "nik", "nikomek", "nikomok", "nikmok", "nikmek", "nik omek", "nik bouk", "nayk*", "nayek*",
+        "mnayk*", "mnayek*", "manyak*", "manyok*", "manyouk*",
+        "miboun*", "mibon*", "zamel*", "zemel*", "zemla", "zamla", "ta7an", "ta7ana", "tahan", "tahana",
+        "3atay", "9awed*", "9wed*", "gawed*", "gwed*", "kawed*", "qawed*", "9awad*", "qawad*",
+        "sorm*", "tabboun", "tabbon", "tabounek", "tabonek",
+        "zok", "zokomek", "zokmek", "kosomak", "kossomak", "kosomok", "kosemak",
+        "sharmout*", "charmout*", "charmot*",
+        "ya kelb", "ya kalb", "ya 7mar", "ya hmar", "ya bhim", "ya 7ayawen", "ya hayawen",
+        "weld el kalb", "wled el kalb", "ibn el kalb", "weld el 9a7ba", "weld el qa7ba",
+        "na3l bou*", "nal bou*", "na3n bou*", "yel3an*", "yal3an*", "yil3an*", "ya7ra9 bou*", "ya7ra9 din*",
+        "ميبون*", "مبون*", "زامل*", "طحان", "عطاي", "قواد", "زوك", "زكمك", "طبون", "طبونك", "صرم", "صرمك",
+        "يا بهيم", "نعل بو*", "نعلبو*", "ولد القحبه", "ولد الكلب"
+      ],
+      "low": ["khra", "5ra", "khara", "5ara", "3asba", "zebla"]
+    },
+    "it": {
+      "high": ["vaffanculo", "fanculo", "stronz*", "puttan*", "coglion*", "figlio di puttana", "bastardo"],
+      "low": ["cazzo", "merda", "minchia"]
+    },
+    "es": {
+      "high": ["puta", "puto", "cabron*", "pendej*", "hijo de puta", "gilipollas", "maricon*", "zorra"],
+      "low": ["mierda", "joder", "carajo"]
+    }
+  }
+}

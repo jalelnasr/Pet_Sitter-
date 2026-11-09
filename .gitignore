@@ -45,3 +45,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Secrets locaux du backend (compte e-mail) : jamais commités
+backend/mail.properties
+mail.properties

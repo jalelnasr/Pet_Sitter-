@@ -7,6 +7,7 @@ import 'package:pet_sitter/core/theme/ph_icons.dart';
 import 'package:pet_sitter/core/widgets/big_shapes.dart';
 import 'package:pet_sitter/core/widgets/common.dart';
 import 'package:pet_sitter/app/dependencies.dart';
+import 'package:pet_sitter/models/user.dart';
 import 'package:pet_sitter/view_models/auth_view_model.dart';
 import 'package:pet_sitter/views/auth/auth_widgets.dart';
 
@@ -152,6 +153,8 @@ class _AuthScreenState extends State<AuthScreen> {
     initialMode: widget.initialMode,
     initialError: widget.showErrors && widget.initialMode == AuthMode.login
         ? 'E-mail ou mot de passe incorrect. Il vous reste 4 tentatives.'
+        : Deps.of(context).session.wasExpired
+        ? 'Votre session a expiré. Reconnectez-vous.'
         : null,
   );
 
@@ -193,7 +196,9 @@ class _AuthScreenState extends State<AuthScreen> {
     if (vm.isSignup) {
       Navigator.pushNamed(context, R.role);
     } else {
-      Navigator.pushNamedAndRemoveUntil(context, R.owner, (r) => r.settings.name == R.catalog);
+      // Le pet sitter arrive sur son espace, le propriétaire sur l'accueil.
+      final home = vm.user?.role == AppRole.petsitter ? R.sitterSpace : R.owner;
+      Navigator.pushNamedAndRemoveUntil(context, home, (r) => r.settings.name == R.catalog);
     }
   }
 
@@ -300,7 +305,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Exemple de démonstration : aucune donnée n\'est envoyée.',
+              "Votre mot de passe est chiffré et n'est jamais partagé.",
               textAlign: TextAlign.center,
               style: LPText.bodyS.copyWith(fontSize: 12.5, color: LP.faint),
             ),
@@ -432,6 +437,7 @@ class _TermsCheck extends StatelessWidget {
 
 // ————————————————————————————————————————————— MOT DE PASSE OUBLIÉ
 
+/// Récupération en trois étapes : adresse e-mail → code à 6 chiffres + nouveau mot de passe → terminé.
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key, this.preview});
 
@@ -448,51 +454,89 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     sentTo: widget.preview == 'sent' ? 'leila.bensalah@gmail.com' : null,
   );
 
-  final _form = GlobalKey<FormState>();
+  final _emailForm = GlobalKey<FormState>();
+  final _resetForm = GlobalKey<FormState>();
   final _email = TextEditingController();
+  final _code = TextEditingController();
+  final _pwd = TextEditingController();
+  final _confirm = TextEditingController();
 
   @override
   void dispose() {
     vm.dispose();
     _email.dispose();
+    _code.dispose();
+    _pwd.dispose();
+    _confirm.dispose();
     super.dispose();
   }
 
   Future<void> _send() async {
-    if (!_form.currentState!.validate()) return;
+    if (!_emailForm.currentState!.validate()) return;
     await vm.send(_email.text);
+  }
+
+  Future<void> _reset() async {
+    if (!_resetForm.currentState!.validate()) return;
+    await vm.reset(code: _code.text, newPassword: _pwd.text);
+  }
+
+  void _finish() {
+    final home = Deps.of(context).session.user?.role == AppRole.petsitter ? R.sitterSpace : R.owner;
+    Navigator.pushNamedAndRemoveUntil(context, home, (r) => r.settings.name == R.catalog);
   }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(listenable: vm, builder: (context, _) => _content(context));
 
   Widget _content(BuildContext context) {
+    final (title, subtitle) = switch (vm.step) {
+      ResetStep.email => ('Mot de passe oublié', 'Nous vous envoyons un code pour en choisir un nouveau.'),
+      ResetStep.code => ('Vérifiez votre boîte mail', 'Le code reste valable 15 minutes.'),
+      ResetStep.done => ('C\'est fait !', 'Votre nouveau mot de passe est enregistré.'),
+    };
     return AuthShell(
-      title: vm.sent ? 'Vérifiez votre boîte mail' : 'Mot de passe oublié',
-      subtitle: vm.sent
-          ? 'Le lien reste valable 30 minutes.'
-          : 'Nous vous envoyons un lien pour en choisir un nouveau.',
-      child: AnimatedSwitcher(duration: const Duration(milliseconds: 300), child: vm.sent ? _success() : _formView()),
+      title: title,
+      subtitle: subtitle,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: switch (vm.step) {
+          ResetStep.email => _emailView(),
+          ResetStep.code => _codeView(),
+          ResetStep.done => _doneView(),
+        },
+      ),
     );
   }
 
-  Widget _formView() => Form(
-    key: _form,
+  Widget _errorNote() => vm.error == null
+      ? const SizedBox.shrink()
+      : Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: InfoNote(vm.error!, icon: PhosphorIconsRegular.warningCircle, tone: InfoTone.error),
+        );
+
+  Widget _emailView() => Form(
+    key: _emailForm,
     child: Column(
+      key: const ValueKey('email'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _errorNote(),
         TextFormField(
           controller: _email,
           keyboardType: TextInputType.emailAddress,
+          autofillHints: const [AutofillHints.email],
           decoration: const InputDecoration(
             labelText: 'Adresse e-mail',
             hintText: 'nom@exemple.tn',
             prefixIcon: Icon(PhosphorIconsRegular.envelopeSimple, size: 20),
           ),
           validator: AuthViewModel.validateEmail,
+          onFieldSubmitted: (_) => _send(),
         ),
         const SizedBox(height: 18),
-        PawButton(label: 'Envoyer le lien', loading: vm.loading, onPressed: _send),
+        PawButton(label: 'Recevoir le code', loading: vm.loading, onPressed: _send),
         const SizedBox(height: 18),
         const InfoNote(
           'Inscrit avec Apple ou Google ? Utilisez le même bouton pour vous connecter, sans mot de passe.',
@@ -501,8 +545,79 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     ),
   );
 
-  Widget _success() => Column(
-    key: const ValueKey('ok'),
+  Widget _codeView() => Form(
+    key: _resetForm,
+    child: Column(
+      key: const ValueKey('code'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text.rich(
+          TextSpan(
+            style: LPText.bodyM.copyWith(color: LP.muted),
+            children: [
+              const TextSpan(text: 'Si un compte existe pour '),
+              TextSpan(
+                text: vm.email,
+                style: LPText.bodyM.copyWith(fontWeight: FontWeight.w800, color: LP.ink),
+              ),
+              const TextSpan(text: ', un code à 6 chiffres vient d\'y être envoyé. Pensez aux courriers indésirables.'),
+            ],
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        if (vm.info != null) ...[
+          InfoNote(vm.info!, icon: PhosphorIconsRegular.checkCircle),
+          const SizedBox(height: 14),
+        ],
+        _errorNote(),
+        TextFormField(
+          controller: _code,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          autofillHints: const [AutofillHints.oneTimeCode],
+          textAlign: TextAlign.center,
+          style: LPText.display(size: 24).copyWith(letterSpacing: 8),
+          decoration: const InputDecoration(
+            labelText: 'Code reçu',
+            counterText: '',
+            prefixIcon: Icon(PhosphorIconsRegular.key, size: 20),
+          ),
+          validator: ForgotPasswordViewModel.validateCode,
+        ),
+        const SizedBox(height: 12),
+        PasswordField(
+          controller: _pwd,
+          label: 'Nouveau mot de passe',
+          hint: '8 caractères minimum',
+          showStrength: true,
+          validator: AuthViewModel.validateNewPassword,
+        ),
+        const SizedBox(height: 12),
+        PasswordField(
+          controller: _confirm,
+          label: 'Confirmer le mot de passe',
+          hint: 'Saisissez-le à nouveau',
+          validator: (v) => v != _pwd.text ? 'Les deux mots de passe ne correspondent pas.' : null,
+        ),
+        const SizedBox(height: 18),
+        PawButton(label: 'Changer mon mot de passe', loading: vm.loading, onPressed: _reset),
+        const SizedBox(height: 6),
+        TextButton(
+          onPressed: vm.canResend ? vm.resend : null,
+          child: Text(
+            vm.resendIn > 0
+                ? 'Renvoyer le code dans 0:${vm.resendIn.toString().padLeft(2, '0')}'
+                : 'Renvoyer le code',
+          ),
+        ),
+        TextButton(onPressed: vm.loading ? null : vm.changeEmail, child: const Text('Modifier l\'adresse e-mail')),
+      ],
+    ),
+  );
+
+  Widget _doneView() => Column(
+    key: const ValueKey('done'),
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Center(
@@ -510,28 +625,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           width: 76,
           height: 76,
           decoration: const BoxDecoration(color: LP.mint, shape: BoxShape.circle),
-          child: const Icon(PhosphorIconsFill.envelopeSimple, size: 34, color: LP.primary),
+          child: const Icon(PhosphorIconsFill.checkCircle, size: 36, color: LP.primary),
         ).from(scale: 0.3, duration: 0.9, ease: Ease.elasticOut),
       ),
       const SizedBox(height: 18),
-      Text.rich(
-        TextSpan(
-          style: LPText.bodyL.copyWith(color: LP.muted),
-          children: [
-            const TextSpan(text: 'Un lien de réinitialisation a été envoyé à '),
-            TextSpan(
-              text: vm.sentTo,
-              style: LPText.bodyL.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const TextSpan(text: '. Pensez à regarder dans les courriers indésirables.'),
-          ],
-        ),
+      Text(
+        'Vous êtes connecté. Les autres appareils devront se reconnecter avec le nouveau mot de passe.',
+        style: LPText.bodyL.copyWith(color: LP.muted),
         textAlign: TextAlign.center,
       ),
       const SizedBox(height: 24),
-      PawButton(label: 'Retour à la connexion', onPressed: () => Navigator.pop(context)),
-      const SizedBox(height: 6),
-      const TextButton(onPressed: null, child: Text('Renvoyer le lien dans 0:45')),
+      PawButton(label: 'Continuer', onPressed: _finish),
     ],
   );
 }
@@ -550,7 +654,22 @@ class RoleChoiceScreen extends StatefulWidget {
 }
 
 class _RoleChoiceScreenState extends State<RoleChoiceScreen> {
-  late final vm = RoleChoiceViewModel()..choose(widget.preview == 'chosen' ? 0 : -1);
+  late final vm = () {
+    final deps = Deps.of(context);
+    final signedIn = deps.session.isAuthenticated;
+    // Sans compte connecté (aperçu du sommaire), le choix n'est pas enregistré.
+    return RoleChoiceViewModel(signedIn ? deps.auth : null, deps.session.user?.firstName)
+      ..choose(widget.preview == 'chosen' ? 0 : -1);
+  }();
+
+  Future<void> _continue() async {
+    if (!await vm.confirm() || !mounted) return;
+    if (vm.choice == 0) {
+      Navigator.pushNamed(context, R.addPet, arguments: true);
+    } else {
+      Navigator.pushNamedAndRemoveUntil(context, R.sitterSpace, (r) => r.settings.name == R.catalog);
+    }
+  }
 
   @override
   void dispose() {
@@ -571,7 +690,7 @@ class _RoleChoiceScreenState extends State<RoleChoiceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Bienvenue, Leïla', style: LPText.overline.copyWith(color: LP.accentInk)),
+              Text('Bienvenue, ${vm.firstName ?? 'Leïla'}', style: LPText.overline.copyWith(color: LP.accentInk)),
               const SizedBox(height: 10),
               Text('Comment souhaitez-vous utiliser Pet Sitter ?', style: LPText.h1),
               const SizedBox(height: 28),
@@ -601,19 +720,21 @@ class _RoleChoiceScreenState extends State<RoleChoiceScreen> {
                 ],
               ),
               const Spacer(),
+              if (vm.error != null) ...[
+                InfoNote(vm.error!, icon: PhosphorIconsRegular.warningCircle, tone: InfoTone.error),
+                const SizedBox(height: 12),
+              ],
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: vm.choice == null
-                      ? null
-                      : () => vm.choice == 0
-                            ? Navigator.pushNamed(context, R.addPet, arguments: true)
-                            : Navigator.pushNamedAndRemoveUntil(
-                                context,
-                                R.sitterSpace,
-                                (r) => r.settings.name == R.catalog,
-                              ),
-                  child: const Text('Continuer'),
+                  onPressed: vm.canContinue ? _continue : null,
+                  child: vm.loading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.4, color: LP.white),
+                        )
+                      : const Text('Continuer'),
                 ),
               ),
             ],

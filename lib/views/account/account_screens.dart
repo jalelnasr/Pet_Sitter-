@@ -6,6 +6,7 @@ import 'package:pet_sitter/core/motion/gsap.dart';
 import 'package:pet_sitter/app/routes.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
 import 'package:pet_sitter/core/widgets/common.dart';
+import 'package:pet_sitter/core/widgets/member_avatar.dart';
 import 'package:pet_sitter/app/dependencies.dart';
 import 'package:pet_sitter/core/mvvm/view_model.dart';
 import 'package:pet_sitter/view_models/account_view_model.dart';
@@ -172,7 +173,10 @@ class AccountScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ViewModelBuilder<AccountViewModel>(
-      create: (context) => AccountViewModel(Deps.of(context).pets, Deps.of(context).sitters),
+      create: (context) {
+        final deps = Deps.of(context);
+        return AccountViewModel(deps.pets, deps.sitters, auth: deps.auth, session: deps.session);
+      },
       builder: (context, vm) => _content(context, vm),
     );
   }
@@ -188,18 +192,18 @@ class AccountScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Row(
                 children: [
-                  LPAvatar(vm.photo, size: 72),
+                  MemberAvatar(photo: vm.photo, name: vm.fullName, size: 72),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(vm.fullName, style: LPText.h2),
-                        Text('La Marsa, Tunis · membre depuis 2025', style: LPText.bodyS),
+                        Text(vm.subtitle, style: LPText.bodyS),
                         const SizedBox(height: 4),
                         TextButton(
                           style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
-                          onPressed: () {},
+                          onPressed: () => Navigator.pushNamed(context, R.editProfile),
                           child: const Text('Modifier mon profil'),
                         ),
                       ],
@@ -221,9 +225,14 @@ class AccountScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Mode propriétaire', style: LPText.label.copyWith(color: LP.accentInk)),
                         Text(
-                          'Vous aimez les animaux ? Proposez vos services.',
+                          vm.isPetsitter ? 'Mode pet sitter' : 'Mode propriétaire',
+                          style: LPText.label.copyWith(color: LP.accentInk),
+                        ),
+                        Text(
+                          vm.isPetsitter
+                              ? 'Gérez vos demandes et vos disponibilités.'
+                              : 'Vous aimez les animaux ? Proposez vos services.',
                           style: LPText.body(size: 13.5, color: LP.ink),
                         ),
                       ],
@@ -231,12 +240,26 @@ class AccountScreen extends StatelessWidget {
                   ),
                   TextButton(
                     style: TextButton.styleFrom(foregroundColor: LP.primaryDark),
-                    onPressed: () => Navigator.pushNamed(context, R.sitterSpace),
-                    child: const Text('Devenir sitter'),
+                    onPressed: vm.switching
+                        ? null
+                        : () async {
+                            if (!await vm.switchRole(AppRole.petsitter) || !context.mounted) return;
+                            Navigator.pushNamedAndRemoveUntil(
+                              context,
+                              R.sitterSpace,
+                              (r) => r.settings.name == R.catalog,
+                            );
+                          },
+                    child: Text(vm.isPetsitter ? 'Mon espace' : 'Devenir sitter'),
                   ),
                 ],
               ),
             ),
+            if (vm.error != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                child: InfoNote(vm.error!, icon: PhosphorIconsRegular.warningCircle, tone: InfoTone.error),
+              ),
             const SizedBox(height: 8),
             _group('Mon espace'),
             LPListTile(
@@ -273,11 +296,10 @@ class AccountScreen extends StatelessWidget {
             const SizedBox(height: 8),
             LPListTile(
               icon: PhosphorIconsRegular.signOut,
-              title: 'Se déconnecter',
+              title: vm.signingOut ? 'Déconnexion…' : 'Se déconnecter',
               danger: true,
               trailing: const SizedBox.shrink(),
-              onTap: () =>
-                  Navigator.pushNamedAndRemoveUntil(context, R.onboarding, (r) => r.settings.name == R.catalog),
+              onTap: vm.signingOut ? null : () => confirmLogOut(context, vm),
             ),
             const SizedBox(height: 20),
             Center(child: Text('Pet Sitter · version 1.0.0', style: LPText.bodyS.copyWith(fontSize: 12.5))),
@@ -291,6 +313,26 @@ class AccountScreen extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(20, 22, 20, 4),
     child: Text(t.toUpperCase(), style: LPText.overline),
   );
+}
+
+/// Demande confirmation, ferme la session puis revient à l'écran de connexion.
+/// Partagé par les profils propriétaire et pet sitter.
+Future<void> confirmLogOut(BuildContext context, AccountViewModel vm) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Se déconnecter ?'),
+      content: const Text('Vous devrez saisir à nouveau votre e-mail et votre mot de passe.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Se déconnecter')),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+  await vm.logOut();
+  if (!context.mounted) return;
+  Navigator.pushNamedAndRemoveUntil(context, R.login, (r) => r.settings.name == R.catalog);
 }
 
 // ————————————————————————————————————————————— FAVORIS
@@ -517,20 +559,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           _g('Compte'),
-          const LPListTile(
+          LPListTile(
             icon: PhosphorIconsRegular.user,
             title: 'Informations personnelles',
-            subtitle: 'Nom, e-mail, téléphone',
+            subtitle: Deps.of(context).session.user?.email ?? 'Nom, e-mail, téléphone',
+            onTap: () => Navigator.pushNamed(context, R.editProfile),
           ),
-          const LPListTile(
+          LPListTile(
             icon: PhosphorIconsRegular.lockSimple,
-            title: 'Mot de passe et connexion',
-            subtitle: 'Google associé',
+            title: 'Mot de passe',
+            subtitle: 'Changer mon mot de passe',
+            onTap: () => Navigator.pushNamed(context, R.changePassword),
           ),
           LPListTile(
             icon: PhosphorIconsRegular.arrowsLeftRight,
             title: 'Mon usage de Pet Sitter',
-            subtitle: 'Je cherche une garde',
+            subtitle: Deps.of(context).session.user?.role == AppRole.petsitter
+                ? 'Je propose mes services de pet sitter'
+                : 'Je cherche une garde',
             onTap: () => Navigator.pushNamed(context, R.role),
           ),
           _g('Préférences'),

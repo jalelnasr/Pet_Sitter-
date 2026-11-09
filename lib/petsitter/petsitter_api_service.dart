@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:pet_sitter/core/config/api_constants.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/petsitter/petsitter_models.dart';
 import 'package:pet_sitter/petsitter/petsitter_session.dart';
 
@@ -29,6 +30,7 @@ class PetSitterApiService {
     final map = <String, String>{
       'X-User-Id': userId,
       'X-Demo-User-Id': userId,
+      ...AuthSession.instance.authHeaders,
     };
     if (json) {
       map['Content-Type'] = 'application/json';

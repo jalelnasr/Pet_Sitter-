@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:pet_sitter/adoption/api/api_client.dart';
 import 'package:pet_sitter/adoption/api/demo_session.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
 
 import 'event_models.dart';
 
@@ -27,6 +28,7 @@ class EventApiService {
     'Content-Type': 'application/json',
     'X-User-Id': DemoSessionProvider.instance.currentUser.id,
     'X-Demo-User-Id': DemoSessionProvider.instance.currentUser.id,
+    ...AuthSession.instance.authHeaders,
   };
 
   // ————————————————————————————————————————————— ÉVÉNEMENTS
@@ -191,6 +193,7 @@ class EventApiService {
     final request = http.MultipartRequest('POST', uri);
     request.headers['X-User-Id'] = DemoSessionProvider.instance.currentUser.id;
     request.headers['X-Demo-User-Id'] = DemoSessionProvider.instance.currentUser.id;
+    request.headers.addAll(AuthSession.instance.authHeaders);
 
     final lower = file.path.toLowerCase();
     final resolvedType = contentType ??

@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/adoption/api/demo_session.dart';
 import 'package:pet_sitter/core/motion/gsap.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
@@ -1483,6 +1484,8 @@ class EventDemoUserSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Un vrai compte est connecté : le serveur utilise ce compte, le sélecteur de test n'a plus d'effet.
+    if (AuthSession.instance.isAuthenticated) return const SizedBox.shrink();
     final session = DemoSessionProvider.instance;
     return ListenableBuilder(
       listenable: session,
