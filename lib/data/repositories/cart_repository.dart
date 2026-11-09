@@ -14,10 +14,19 @@ class CartRepository extends ChangeNotifier {
     if (!demo) return;
     add(Shop.products[0], Shop.products[0].options.first);
     add(Shop.products[3], Shop.products[3].options.first, qty: 2);
+    deliveryAddress = const DeliveryAddress(
+      recipient: 'Leïla Ben Salah',
+      phone: '20 000 000',
+      address: 'Rue du Lac Biwa',
+      city: 'La Marsa',
+    );
   }
 
   static const freeShippingFrom = 80;
   static const shippingFee = 7;
+
+  /// Dernière adresse saisie, reprise à la commande suivante.
+  DeliveryAddress? deliveryAddress;
 
   final List<CartLine> _lines = [];
   List<CartLine> get lines => List.unmodifiable(_lines);
@@ -46,12 +55,8 @@ class CartRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Envoie la commande et vide le panier. Renvoie (total, nombre d'articles).
-  Future<(int, int)> placeOrder({required String payment}) async {
-    await Future.delayed(const Duration(milliseconds: 1300));
-    final result = (total, count);
+  void clear() {
     _lines.clear();
     notifyListeners();
-    return result;
   }
 }

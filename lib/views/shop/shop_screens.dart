@@ -10,7 +10,9 @@ import 'package:pet_sitter/core/widgets/common.dart';
 import 'package:pet_sitter/app/dependencies.dart';
 import 'package:pet_sitter/data/repositories/cart_repository.dart';
 import 'package:pet_sitter/core/mvvm/view_model.dart';
+import 'package:pet_sitter/view_models/reviews_view_model.dart';
 import 'package:pet_sitter/view_models/shop_view_model.dart';
+import 'package:pet_sitter/views/shop/reviews_section.dart';
 import 'package:pet_sitter/core/widgets/product_art.dart';
 
 String _dt(int v) => '$v DT';
@@ -171,8 +173,24 @@ class _ShopScreenState extends State<ShopScreen> {
           const SizedBox(height: 20),
           const _PromoBanner().from(y: 24, scale: 0.97, delay: 0.2, duration: 0.7),
 
+          if (vm.loading)
+            const Padding(
+              padding: EdgeInsets.all(48),
+              child: Center(child: CircularProgressIndicator(color: LP.primary)),
+            ),
+          if (vm.error != null)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Text(vm.error!, textAlign: TextAlign.center, style: LPText.title),
+                  TextButton(onPressed: vm.load, child: const Text('Réessayer')),
+                ],
+              ),
+            ),
+
           // Recommandés pour mes animaux
-          if (!vm.hasFilters) ...[
+          if (vm.ready && !vm.hasFilters) ...[
             const SizedBox(height: 26),
             Padding(
               padding: LP.pagePadding,
@@ -210,53 +228,55 @@ class _ShopScreenState extends State<ShopScreen> {
           ],
 
           // Grille de produits
-          const SizedBox(height: 22),
-          Padding(
-            padding: LP.pagePadding,
-            child: Row(
-              children: [
-                Expanded(child: Text(vm.gridTitle, style: LPText.h3)),
-                Text('${items.length} produit${items.length > 1 ? 's' : ''}', style: LPText.bodyS),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (items.isEmpty)
+          if (vm.ready) ...[
+            const SizedBox(height: 22),
             Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
+              padding: LP.pagePadding,
+              child: Row(
                 children: [
-                  const Icon(PhosphorIconsRegular.magnifyingGlass, size: 40, color: LP.faint),
-                  const SizedBox(height: 10),
-                  Text('Aucun produit ne correspond.', style: LPText.title),
-                  TextButton(onPressed: vm.clearFilters, child: const Text('Effacer les filtres')),
+                  Expanded(child: Text(vm.gridTitle, style: LPText.h3)),
+                  Text('${items.length} produit${items.length > 1 ? 's' : ''}', style: LPText.bodyS),
                 ],
               ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: LayoutBuilder(
-                builder: (context, c) {
-                  final w = (c.maxWidth - 12) / 2;
-                  return Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      for (var i = 0; i < items.length; i++)
-                        SizedBox(
-                          width: w,
-                          child: ProductCard(product: items[i], onAdd: () => vm.addToCart(items[i])),
-                        ).from(
-                          key: ValueKey('${items[i].id}${vm.species}${vm.category}'),
-                          y: 26,
-                          delay: stagger(i, start: 0.05, each: 0.05),
-                        ),
-                    ],
-                  );
-                },
-              ),
             ),
+            const SizedBox(height: 12),
+            if (items.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    const Icon(PhosphorIconsRegular.magnifyingGlass, size: 40, color: LP.faint),
+                    const SizedBox(height: 10),
+                    Text('Aucun produit ne correspond.', style: LPText.title),
+                    TextButton(onPressed: vm.clearFilters, child: const Text('Effacer les filtres')),
+                  ],
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: LayoutBuilder(
+                  builder: (context, c) {
+                    final w = (c.maxWidth - 12) / 2;
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        for (var i = 0; i < items.length; i++)
+                          SizedBox(
+                            width: w,
+                            child: ProductCard(product: items[i], onAdd: () => vm.addToCart(items[i])),
+                          ).from(
+                            key: ValueKey('${items[i].id}${vm.species}${vm.category}'),
+                            y: 26,
+                            delay: stagger(i, start: 0.05, each: 0.05),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+          ],
           const SizedBox(height: 20),
           Text(
             'Produits et marques fictifs, pour l\'exemple.',
@@ -463,6 +483,7 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (product.soldOut) return const Pill(label: 'Épuisé', bg: LP.soft, fg: LP.muted);
     return Tooltip(
       message: 'Ajouter au panier',
       child: PressScale(
@@ -510,6 +531,7 @@ class ProductScreen extends StatefulWidget {
 
 class _ProductScreenState extends State<ProductScreen> {
   late final vm = ProductViewModel(widget.product, Deps.of(context).cart);
+  late final reviews = ProductReviewsViewModel(Deps.of(context).reviews, Deps.of(context).session, widget.product.id);
 
   Product get p => vm.product;
 
@@ -531,6 +553,7 @@ class _ProductScreenState extends State<ProductScreen> {
 
   @override
   void dispose() {
+    reviews.dispose();
     vm.dispose();
     super.dispose();
   }
@@ -610,7 +633,15 @@ class _ProductScreenState extends State<ProductScreen> {
                   children: [
                     Text(p.brand, style: LPText.label.copyWith(color: LP.muted)),
                     const SizedBox(width: 10),
-                    RatingLine(p.rating, p.reviews),
+                    if (!reviews.enabled)
+                      RatingLine(p.rating, p.reviews)
+                    else
+                      ListenableBuilder(
+                        listenable: reviews,
+                        builder: (context, _) => reviews.count > 0
+                            ? RatingLine(reviews.average, reviews.count)
+                            : Text('Aucun avis', style: LPText.bodyS),
+                      ),
                   ],
                 ).from(y: 16, delay: 0.24),
                 const SizedBox(height: 14),
@@ -639,10 +670,10 @@ class _ProductScreenState extends State<ProductScreen> {
                   children: [
                     for (final o in p.options)
                       ChoiceChip(
-                        label: Text('${o.label} · ${_dt(o.price)}'),
+                        label: Text('${o.label} · ${o.inStock ? _dt(o.price) : 'épuisé'}'),
                         selected: o == vm.option,
                         showCheckmark: false,
-                        onSelected: (_) => vm.setOption(o),
+                        onSelected: o.inStock ? (_) => vm.setOption(o) : null,
                         labelStyle: LPText.body(
                           size: 14,
                           w: FontWeight.w700,
@@ -655,7 +686,7 @@ class _ProductScreenState extends State<ProductScreen> {
                 Row(
                   children: [
                     Expanded(child: Text('Quantité', style: LPText.label)),
-                    Counter(value: vm.qty, min: 1, max: 20, onChanged: vm.setQty),
+                    Counter(value: vm.qty, min: 1, max: vm.maxQty, onChanged: vm.setQty),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -678,10 +709,16 @@ class _ProductScreenState extends State<ProductScreen> {
                   ),
                   const Divider(),
                 ],
+                ProductReviewsSection(vm: reviews),
                 const SizedBox(height: 18),
-                for (final (icon, text) in const [
+                for (final (icon, text) in [
                   (PhosphorIconsRegular.truck, 'Livraison en 24 à 48 h à Tunis, Sousse et Sfax'),
-                  (PhosphorIconsRegular.money, 'Paiement à la livraison ou par carte'),
+                  (
+                    PhosphorIconsRegular.money,
+                    Deps.of(context).orders.cardAvailable
+                        ? 'Paiement à la livraison ou par carte'
+                        : 'Paiement à la livraison',
+                  ),
                   (PhosphorIconsRegular.arrowCounterClockwise, 'Retour gratuit sous 14 jours'),
                 ])
                   Padding(
@@ -717,7 +754,11 @@ class _ProductScreenState extends State<ProductScreen> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: PawButton(label: 'Ajouter au panier', icon: PhosphorIconsFill.shoppingBag, onPressed: _add),
+              child: PawButton(
+                label: vm.canAdd ? 'Ajouter au panier' : 'Épuisé',
+                icon: PhosphorIconsFill.shoppingBag,
+                onPressed: vm.canAdd ? _add : null,
+              ),
             ),
           ],
         ),
@@ -739,7 +780,11 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  late final vm = CartViewModel(widget.preview == 'empty' ? CartRepository(demo: false) : Deps.of(context).cart);
+  late final vm = CartViewModel(
+    widget.preview == 'empty' ? CartRepository(demo: false) : Deps.of(context).cart,
+    orders: Deps.of(context).orders,
+    session: Deps.of(context).session,
+  );
 
   @override
   void dispose() {
@@ -747,10 +792,33 @@ class _CartScreenState extends State<CartScreen> {
     super.dispose();
   }
 
+  Future<void> _editAddress() async {
+    final address = await showModalBottomSheet<DeliveryAddress>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _AddressSheet(initial: vm.address, defaultName: vm.userName),
+    );
+    if (address != null) vm.setAddress(address);
+  }
+
   Future<void> _order() async {
-    final (total, count) = await vm.order();
+    if (vm.needsLogin) {
+      await Navigator.pushNamed(context, R.login);
+      if (!mounted || vm.needsLogin) return;
+    }
+    if (vm.address == null) {
+      await _editAddress();
+      if (!mounted || vm.address == null) return;
+    }
+    final order = await vm.order();
     if (!mounted) return;
-    Navigator.pushReplacementNamed(context, R.orderDone, arguments: (total, count));
+    if (order == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(vm.orderError ?? 'La commande n\'a pas abouti. Réessayez.')));
+      return;
+    }
+    Navigator.pushReplacementNamed(context, R.orderDone, arguments: order);
   }
 
   @override
@@ -819,9 +887,15 @@ class _CartScreenState extends State<CartScreen> {
                     const SizedBox(height: 6),
                     LPListTile(
                       icon: PhosphorIconsRegular.mapPin,
-                      title: 'Rue du Lac Biwa, La Marsa',
-                      subtitle: 'Mar. ou mer. · 9 h – 18 h',
-                      trailing: Text('Modifier', style: LPText.label.copyWith(color: LP.primary)),
+                      title: vm.address == null ? 'Ajouter une adresse' : '${vm.address!.address}, ${vm.address!.city}',
+                      subtitle: vm.address == null
+                          ? 'Obligatoire pour commander'
+                          : '${vm.address!.recipient} · ${vm.address!.phone}',
+                      trailing: Text(
+                        vm.address == null ? 'Ajouter' : 'Modifier',
+                        style: LPText.label.copyWith(color: LP.primary),
+                      ),
+                      onTap: _editAddress,
                     ),
                     const SizedBox(height: 18),
                     Text('Paiement', style: LPText.h3),
@@ -838,13 +912,14 @@ class _CartScreenState extends State<CartScreen> {
                             subtitle: Text('En espèces, au livreur', style: LPText.bodyS),
                             secondary: const Icon(PhosphorIconsRegular.money, color: LP.primary),
                           ),
-                          RadioListTile<String>(
-                            contentPadding: EdgeInsets.zero,
-                            value: 'card',
-                            title: Text('Carte bancaire', style: LPText.bodyL),
-                            subtitle: Text('Paiement sécurisé', style: LPText.bodyS),
-                            secondary: const Icon(PhosphorIconsRegular.creditCard, color: LP.primary),
-                          ),
+                          if (vm.cardAvailable)
+                            RadioListTile<String>(
+                              contentPadding: EdgeInsets.zero,
+                              value: 'card',
+                              title: Text('Carte bancaire', style: LPText.bodyL),
+                              subtitle: Text('Paiement sécurisé', style: LPText.bodyS),
+                              secondary: const Icon(PhosphorIconsRegular.creditCard, color: LP.primary),
+                            ),
                         ],
                       ),
                     ),
@@ -965,19 +1040,124 @@ class _CartScreenState extends State<CartScreen> {
 
 // ————————————————————————————————————————————— COMMANDE CONFIRMÉE
 
+class _AddressSheet extends StatefulWidget {
+  const _AddressSheet({this.initial, this.defaultName});
+  final DeliveryAddress? initial;
+  final String? defaultName;
+
+  @override
+  State<_AddressSheet> createState() => _AddressSheetState();
+}
+
+class _AddressSheetState extends State<_AddressSheet> {
+  final _form = GlobalKey<FormState>();
+  late final _recipient = TextEditingController(text: widget.initial?.recipient ?? widget.defaultName);
+  late final _phone = TextEditingController(text: widget.initial?.phone);
+  late final _address = TextEditingController(text: widget.initial?.address);
+  late final _city = TextEditingController(text: widget.initial?.city);
+
+  @override
+  void dispose() {
+    _recipient.dispose();
+    _phone.dispose();
+    _address.dispose();
+    _city.dispose();
+    super.dispose();
+  }
+
+  static String? _required(String? v) => (v == null || v.trim().isEmpty) ? 'Champ obligatoire.' : null;
+
+  static String? _validPhone(String? v) =>
+      RegExp(r'^\+?[0-9 ]{8,19}$').hasMatch(v?.trim() ?? '') ? null : 'Numéro de téléphone invalide.';
+
+  void _save() {
+    if (!_form.currentState!.validate()) return;
+    Navigator.pop(
+      context,
+      DeliveryAddress(
+        recipient: _recipient.text.trim(),
+        phone: _phone.text.trim(),
+        address: _address.text.trim(),
+        city: _city.text.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
+      child: Form(
+        key: _form,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Adresse de livraison', style: LPText.h3),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _recipient,
+                maxLength: 100,
+                decoration: const InputDecoration(labelText: 'Destinataire', counterText: ''),
+                validator: _required,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _phone,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Téléphone', hintText: '20 000 000'),
+                validator: _validPhone,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _address,
+                maxLength: 255,
+                decoration: const InputDecoration(labelText: 'Adresse', counterText: ''),
+                validator: _required,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _city,
+                maxLength: 100,
+                decoration: const InputDecoration(labelText: 'Ville', counterText: ''),
+                validator: _required,
+              ),
+              const SizedBox(height: 18),
+              PawButton(label: 'Enregistrer l\'adresse', onPressed: _save),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class OrderDoneScreen extends StatelessWidget {
-  const OrderDoneScreen({super.key, this.total = 77, this.count = 3});
+  const OrderDoneScreen({super.key, this.order, this.total = 77, this.count = 3});
+
+  /// Commande réelle ; sans elle, l'écran montre l'aperçu du sommaire.
+  final Order? order;
   final int total;
   final int count;
 
   @override
   Widget build(BuildContext context) {
-    const steps = [
-      ('Commande confirmée', 'Aujourd\'hui, 18:42', true),
+    final o = order;
+    final at = o?.createdAt;
+    final confirmedAt = at == null
+        ? 'Aujourd\'hui, 18:42'
+        : 'Aujourd\'hui, ${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
+    final steps = [
+      ('Commande confirmée', confirmedAt, true),
       ('En préparation', 'Notre entrepôt de Tunis', false),
       ('En route', 'Le livreur vous appelle avant de passer', false),
-      ('Livrée', 'Mardi 20 octobre', false),
+      ('Livrée', o == null ? 'Mardi 20 octobre' : 'Sous 24 à 48 h', false),
     ];
+    final items = o?.itemCount ?? count;
+    final summary = o == null
+        ? 'Commande n° PS-10482 · $count article${count > 1 ? 's' : ''} · ${_dt(total)}\nLivraison prévue mardi 20 octobre à La Marsa.'
+        : 'Commande n° ${o.number} · $items article${items > 1 ? 's' : ''} · ${_dt(o.total)}\nLivraison à ${o.delivery.city} en 24 à 48 h.';
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -1001,7 +1181,7 @@ class OrderDoneScreen extends StatelessWidget {
           Text('Commande confirmée', textAlign: TextAlign.center, style: LPText.h1).from(y: 20, delay: 0.15),
           const SizedBox(height: 8),
           Text(
-            'Commande n° PS-10482 · $count article${count > 1 ? 's' : ''} · ${_dt(total)}\nLivraison prévue mardi 20 octobre à La Marsa.',
+            summary,
             textAlign: TextAlign.center,
             style: LPText.bodyM.copyWith(color: LP.muted),
           ).from(y: 20, delay: 0.22),
@@ -1058,6 +1238,14 @@ class OrderDoneScreen extends StatelessWidget {
               ),
             ).from(x: 24, delay: stagger(i, start: 0.3, each: 0.1)),
           const SizedBox(height: 18),
+          if (o != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: OutlinedButton(
+                onPressed: () => Navigator.pushNamed(context, R.myOrders),
+                child: const Text('Voir mes commandes'),
+              ),
+            ),
           PawButton(
             label: 'Retour à la boutique',
             onPressed: () => Navigator.pushNamedAndRemoveUntil(context, R.shop, (r) => r.settings.name == R.catalog),

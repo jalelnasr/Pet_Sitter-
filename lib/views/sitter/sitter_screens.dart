@@ -753,6 +753,18 @@ class _SitterAccount extends StatelessWidget {
               onTap: () => Navigator.pushNamed(context, R.sitter, arguments: demo),
             ),
           LPListTile(
+            icon: PhosphorIconsRegular.storefront,
+            title: 'Boutique',
+            subtitle: 'Nourriture et accessoires',
+            onTap: () => Navigator.pushNamed(context, R.shop),
+          ),
+          LPListTile(
+            icon: PhosphorIconsRegular.shoppingBag,
+            title: 'Mes commandes',
+            subtitle: 'Suivi et annulation',
+            onTap: () => Navigator.pushNamed(context, R.myOrders),
+          ),
+          LPListTile(
             icon: PhosphorIconsRegular.tag,
             title: 'Services et tarifs',
             onTap: () => Navigator.pushNamed(context, R.services),

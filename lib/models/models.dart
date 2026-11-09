@@ -4,9 +4,12 @@ library;
 
 export 'booking.dart';
 export 'message.dart';
+export 'order.dart';
 export 'pet.dart';
 export 'pet_form.dart';
 export 'product.dart';
+export 'review.dart';
+export 'sales.dart';
 export 'search.dart';
 export 'sitter.dart';
 export 'sitter_space.dart';

@@ -49,3 +49,6 @@ app.*.map.json
 # Secrets locaux du backend (compte e-mail) : jamais commités
 backend/mail.properties
 mail.properties
+
+# Clé Gemini locale de la boutique (jamais dans Git)
+gemini.local.json

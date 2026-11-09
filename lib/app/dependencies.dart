@@ -3,15 +3,23 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:pet_sitter/core/config/api_constants.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
+import 'package:pet_sitter/data/repositories/admin_repository.dart';
 import 'package:pet_sitter/data/repositories/auth_repository.dart';
 import 'package:pet_sitter/data/repositories/booking_repository.dart';
 import 'package:pet_sitter/data/repositories/cart_repository.dart';
 import 'package:pet_sitter/data/repositories/message_repository.dart';
+import 'package:pet_sitter/data/repositories/order_repository.dart';
 import 'package:pet_sitter/data/repositories/pet_repository.dart';
+import 'package:pet_sitter/data/repositories/review_repository.dart';
+import 'package:pet_sitter/data/repositories/sales_analysis_repository.dart';
 import 'package:pet_sitter/data/repositories/shop_repository.dart';
 import 'package:pet_sitter/data/repositories/sitter_repository.dart';
 import 'package:pet_sitter/data/repositories/sitter_space_repository.dart';
+import 'package:pet_sitter/data/sources/api_client.dart';
+import 'package:pet_sitter/data/sources/gemini_client.dart';
+import 'package:pet_sitter/data/sources/store_config.dart';
 
 class Deps extends InheritedWidget {
   Deps({
@@ -25,8 +33,16 @@ class Deps extends InheritedWidget {
     required this.cart,
     required this.sitterSpace,
     AuthSession? session,
+    OrderRepository? orders,
+    AdminRepository? admin,
+    ReviewRepository? reviews,
+    SalesAnalysisRepository? salesAnalysis,
     required super.child,
-  }) : session = session ?? AuthSession.instance;
+  }) : session = session ?? AuthSession.instance,
+       orders = orders ?? MockOrderRepository(),
+       admin = admin ?? MockAdminRepository(),
+       reviews = reviews ?? MockReviewRepository(),
+       salesAnalysis = salesAnalysis ?? const DisabledSalesAnalysis();
 
   /// Version de démonstration : toutes les données sont simulées en mémoire.
   factory Deps.mock({required Widget child}) => Deps(
@@ -43,17 +59,25 @@ class Deps extends InheritedWidget {
 
   /// Version connectée : comptes et messagerie passent par le backend Spring Boot,
   /// les autres domaines gardent leurs données de démonstration.
-  factory Deps.live({required Widget child}) => Deps(
+  factory Deps.live({required Widget child}) {
+    // Boutique : catalogue, commandes, avis et administration passent par le backend commun.
+    final store = ApiClient(baseUrl: ApiConstants.baseUrl, session: AuthSession.instance);
+    return Deps(
     auth: ApiAuthRepository(),
     sitters: MockSitterRepository(),
     pets: MockPetRepository(),
     bookings: MockBookingRepository(),
     messages: ApiMessageRepository(),
-    shop: MockShopRepository(),
-    cart: CartRepository(),
+    shop: ApiShopRepository(baseUrl: ApiConstants.baseUrl),
+    cart: CartRepository(demo: false),
     sitterSpace: MockSitterSpaceRepository(),
+    orders: ApiOrderRepository(store),
+    admin: ApiAdminRepository(store),
+    reviews: ApiReviewRepository(store),
+    salesAnalysis: GeminiSalesAnalysis(GeminiClient(apiKey: StoreConfig.geminiKey, model: StoreConfig.geminiModel)),
     child: child,
   );
+  }
 
   final AuthRepository auth;
   final SitterRepository sitters;
@@ -66,6 +90,14 @@ class Deps extends InheritedWidget {
 
   /// Utilisateur connecté (partagé, écoutable).
   final AuthSession session;
+
+  // Boutique et commandes
+  final OrderRepository orders;
+  final AdminRepository admin;
+  final ReviewRepository reviews;
+
+  /// Analyse des ventes par Gemini, appelé directement depuis l'application.
+  final SalesAnalysisRepository salesAnalysis;
 
   static Deps of(BuildContext context) {
     final deps = context.getInheritedWidgetOfExactType<Deps>();

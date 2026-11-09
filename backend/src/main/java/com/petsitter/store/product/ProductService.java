@@ -1,0 +1,104 @@
+package com.petsitter.store.product;
+
+import java.util.List;
+import java.util.Locale;
+
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.petsitter.common.exception.BadRequestException;
+import com.petsitter.common.exception.BusinessException;
+import com.petsitter.common.exception.ResourceNotFoundException;
+import com.petsitter.common.exception.UnauthenticatedException;
+import com.petsitter.store.product.ProductDtos.CreateProductRequest;
+import com.petsitter.store.product.ProductDtos.PageResponse;
+import com.petsitter.store.product.ProductDtos.ProductRequest;
+import com.petsitter.store.product.ProductDtos.ProductResponse;
+
+@Service
+public class ProductService {
+
+	private static final int MAX_PAGE_SIZE = 100;
+
+	private final ProductRepository products;
+
+	public ProductService(ProductRepository products) {
+		this.products = products;
+	}
+
+	@Transactional(readOnly = true)
+	public PageResponse<ProductResponse> search(ShopCategory category, Species species, String q, boolean includeInactive,
+			int page, int size) {
+		String pattern = (q == null || q.isBlank()) ? null : "%" + escapeLike(q.trim().toLowerCase(Locale.ROOT)) + "%";
+		PageRequest pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE), Sort.by("name"));
+		return PageResponse.of(products.search(category, species, pattern, includeInactive, pageable).map(ProductResponse::of));
+	}
+
+	/** Produits en vente avec au moins un format en stock, toujours dans le même ordre. */
+	@Transactional(readOnly = true)
+	public List<ProductResponse> inStock() {
+		return products.findAll(Sort.by("id"))
+			.stream()
+			.filter(Product::isActive)
+			.map(ProductResponse::of)
+			.filter(p -> p.options().stream().anyMatch(o -> o.stock() > 0))
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public ProductResponse getPublic(String id) {
+		Product p = find(id);
+		if (!p.isActive()) {
+			throw notFound();
+		}
+		return ProductResponse.of(p);
+	}
+
+	@Transactional
+	public ProductResponse create(CreateProductRequest req) {
+		if (products.existsById(req.id())) {
+			throw new BusinessException("STORE_CONFLICT", "Un produit existe déjà avec cet identifiant.");
+		}
+		checkLabels(req.product());
+		Product p = new Product(req.id());
+		p.update(req.product());
+		return ProductResponse.of(products.saveAndFlush(p));
+	}
+
+	@Transactional
+	public ProductResponse update(String id, ProductRequest req) {
+		checkLabels(req);
+		Product p = find(id);
+		p.update(req);
+		products.flush();
+		return ProductResponse.of(p);
+	}
+
+	/** Retrait de la vente : le produit reste en base pour l'historique des commandes. */
+	@Transactional
+	public void deactivate(String id) {
+		find(id).deactivate();
+	}
+
+	private void checkLabels(ProductRequest req) {
+		long distinct = req.options().stream().map(ProductDtos.OptionRequest::label).distinct().count();
+		if (distinct != req.options().size()) {
+			throw new BadRequestException("STORE_INVALID", "Deux formats portent le même nom.");
+		}
+	}
+
+	private Product find(String id) {
+		return products.findById(id).orElseThrow(ProductService::notFound);
+	}
+
+	private static RuntimeException notFound() {
+		return new ResourceNotFoundException("Produit introuvable.");
+	}
+
+	private static String escapeLike(String s) {
+		return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+	}
+
+}
