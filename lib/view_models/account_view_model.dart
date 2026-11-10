@@ -12,6 +12,7 @@ class AccountViewModel extends ViewModel {
     : _auth = auth,
       _session = session {
     _session?.addListener(notify);
+    _pets.addListener(notify);
   }
 
   final PetRepository _pets;
@@ -40,7 +41,7 @@ class AccountViewModel extends ViewModel {
   bool get isPetsitter => user?.role == AppRole.petsitter;
 
   List<Pet> get pets => _pets.myPets();
-  String get petsSummary => pets.map((p) => p.name).join(', ');
+  String get petsSummary => pets.isEmpty ? 'Aucun animal pour le moment' : pets.map((p) => p.name).join(', ');
 
   String? _error;
   String? get error => _error;
@@ -81,6 +82,7 @@ class AccountViewModel extends ViewModel {
   @override
   void dispose() {
     _session?.removeListener(notify);
+    _pets.removeListener(notify);
     super.dispose();
   }
 }

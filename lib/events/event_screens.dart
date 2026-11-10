@@ -8,7 +8,7 @@ import 'package:pet_sitter/core/mvvm/view_model.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
 import 'package:pet_sitter/core/theme/ph_icons.dart';
 import 'package:pet_sitter/core/widgets/common.dart';
-import 'package:pet_sitter/data/sources/mock_data.dart' show Mock;
+import 'package:pet_sitter/core/session/auth_session.dart';
 
 import 'event_mock.dart';
 import 'event_models.dart';
@@ -305,10 +305,6 @@ class _EventsListScreenState extends State<EventsListScreen> {
                             : '${results.length} événement${results.length > 1 ? 's' : ''}',
                         style: LPText.title,
                       ),
-                    ),
-                    Text(
-                      'Événements fictifs',
-                      style: LPText.bodyS.copyWith(fontSize: 12.5),
                     ),
                   ],
                 ),
@@ -1586,7 +1582,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       description: _description.text.trim(),
       category: _category,
       imageUrl: _image,
-      organizerName: widget.event?.organizerName ?? Mock.ownerFullName,
+      organizerName: widget.event?.organizerName ?? AuthSession.instance.user?.fullName ?? 'Organisateur',
       location: _location.text.trim(),
       startDate: _start,
       endDate: _end,

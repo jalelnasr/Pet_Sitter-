@@ -283,15 +283,9 @@ class AccountScreen extends StatelessWidget {
                 onTap: () => Navigator.pushNamed(context, R.storeAdmin),
               ),
             LPListTile(
-              icon: PhosphorIconsRegular.heart,
-              title: 'Favoris',
-              subtitle: '${vm.favoritesCount} pet sitters',
-              onTap: () => Navigator.pushNamed(context, R.favorites),
-            ),
-            LPListTile(
               icon: PhosphorIconsRegular.bell,
               title: 'Notifications',
-              trailing: const Pill(label: '3', bg: LP.primary, fg: LP.white),
+              subtitle: 'Préférences',
               onTap: () => Navigator.pushNamed(context, R.notifications),
             ),
             _group('Assistance'),
@@ -399,23 +393,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) => ListenableBuilder(listenable: vm, builder: (context, _) => _content(context));
 
   Widget _content(BuildContext context) {
-    final items = [
-      (PhosphorIconsRegular.camera, 'Amira a ajouté une photo de Simba', 'Il y a 12 min', true),
-      (PhosphorIconsRegular.checkCircle, 'Salma a confirmé les visites pour Bulle', 'Hier, 18:20', true),
-      (PhosphorIconsRegular.hourglassMedium, 'Votre demande à Inès attend une réponse', 'Lun., 10:05', true),
-      (PhosphorIconsRegular.calendarCheck, 'Rappel : dépôt de Simba et Kiwi vendredi à 18 h', 'Mer., 09:00', false),
-    ];
+    // Pas encore de notifications envoyées par le serveur : pas d'exemples inventés.
+    const items = <(IconData, String, String, bool)>[];
     return Scaffold(
-      appBar: AppBar(
-        leading: const BackButton(),
-        title: const Text('Notifications'),
-        actions: [
-          TextButton(onPressed: () {}, child: const Text('Tout lire')),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: AppBar(leading: const BackButton(), title: const Text('Notifications')),
       body: ListView(
         children: [
+          if (items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: InfoNote(
+                'Aucune notification pour le moment. Vos messages sont dans l\'onglet Messages.',
+                icon: PhosphorIconsRegular.bell,
+              ),
+            ),
           for (final (icon, title, time, unread) in items)
             Container(
               color: unread ? LP.mintPale.withValues(alpha: 0.6) : null,

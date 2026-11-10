@@ -25,7 +25,7 @@ class AddPetScreen extends StatefulWidget {
 class _AddPetScreenState extends State<AddPetScreen> {
   late final vm = PetFormViewModel(Deps.of(context).pets, initial: widget.initial, firstTime: widget.firstTime);
 
-  late final _name = TextEditingController(text: vm.suggestedName);
+  final _name = TextEditingController();
 
   @override
   void dispose() {
@@ -35,7 +35,10 @@ class _AddPetScreenState extends State<AddPetScreen> {
   }
 
   Future<void> _save() async {
-    await vm.save(_name.text);
+    if (!await vm.save(_name.text)) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(vm.error!)));
+      return;
+    }
     if (!mounted) return;
     if (vm.firstTime) {
       Navigator.pushNamedAndRemoveUntil(context, R.owner, (r) => r.settings.name == R.catalog);
@@ -43,7 +46,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
       Navigator.pop(context);
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Profil de ${_name.text.isEmpty ? 'votre animal' : _name.text} enregistré.')),
+      SnackBar(content: Text('Profil de ${_name.text.trim()} enregistré.')),
     );
   }
 
@@ -131,11 +134,12 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 const FieldLabel('Âge'),
                 Row(
                   children: [
-                    const SizedBox(
+                    SizedBox(
                       width: 110,
                       child: TextField(
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(hintText: '4'),
+                        onChanged: (v) => vm.age = v,
+                        decoration: const InputDecoration(hintText: '4'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -195,9 +199,10 @@ class _AddPetScreenState extends State<AddPetScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                const TextField(
+                TextField(
                   maxLines: 3,
-                  decoration: InputDecoration(
+                  onChanged: (v) => vm.care = v,
+                  decoration: const InputDecoration(
                     hintText: 'Médicaments, allergies, traitement en cours… Indiquez la dose et l\'horaire.',
                   ),
                 ),
@@ -216,16 +221,18 @@ class _AddPetScreenState extends State<AddPetScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                const TextField(
-                  decoration: InputDecoration(
+                TextField(
+                  onChanged: (v) => vm.vetName = v,
+                  decoration: const InputDecoration(
                     hintText: 'Nom ou clinique',
                     prefixIcon: Icon(PhosphorIconsRegular.firstAid, size: 20),
                   ),
                 ),
                 const SizedBox(height: 10),
-                const TextField(
+                TextField(
                   keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
+                  onChanged: (v) => vm.vetPhone = v,
+                  decoration: const InputDecoration(
                     hintText: 'Téléphone · ex. 71 000 000',
                     prefixIcon: Icon(PhosphorIconsRegular.phone, size: 20),
                   ),
@@ -247,7 +254,13 @@ class _AddPetScreenState extends State<AddPetScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             FieldLabel(f.label),
-            TextField(decoration: InputDecoration(hintText: hint)),
+            TextFormField(
+              // Une clé par espèce : changer d'espèce n'emporte pas le texte d'une autre question.
+              key: ValueKey('${vm.species.name}.${f.label}'),
+              initialValue: vm.textOf(f),
+              onChanged: (v) => vm.setText(f, v),
+              decoration: InputDecoration(hintText: hint),
+            ),
           ],
         );
       case ChoiceQ(:final options):
@@ -296,7 +309,7 @@ class PetProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final facts = [pet.breed, pet.age, if (pet.sex != '—') pet.sex];
+    final facts = [pet.breed, pet.age, if (pet.sex != '—') pet.sex].where((s) => s.isNotEmpty);
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -312,16 +325,6 @@ class PetProfileScreen extends StatelessWidget {
                 tooltip: 'Retour',
               ),
             ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: RoundIconButton(
-                  PhosphorIconsRegular.pencilSimple,
-                  tooltip: 'Modifier',
-                  onTap: () => Navigator.pushNamed(context, R.addPet, arguments: pet.species),
-                ),
-              ),
-            ],
             flexibleSpace: FlexibleSpaceBar(
               background: LPImage(pet.photo, radius: 0, width: double.infinity, height: double.infinity),
             ),
@@ -344,8 +347,9 @@ class PetProfileScreen extends StatelessWidget {
                     'Ce profil est joint automatiquement à vos demandes de garde.',
                     icon: PhosphorIconsRegular.shareNetwork,
                   ),
-                  _block('Alimentation', PhosphorIconsRegular.bowlFood, pet.food),
-                  _block(
+                  if (pet.food.isNotEmpty) _block('Alimentation', PhosphorIconsRegular.bowlFood, pet.food),
+                  if (pet.habits.isNotEmpty)
+                    _block(
                     pet.species == Species.poisson ? 'Aquarium' : 'Habitudes',
                     pet.species == Species.poisson ? PhosphorIconsRegular.waves : PhosphorIconsRegular.houseLine,
                     pet.habits,
@@ -359,25 +363,12 @@ class PetProfileScreen extends StatelessWidget {
                     ),
                   ],
                   _title('Soins particuliers', PhosphorIconsRegular.firstAidKit),
-                  Text(pet.care, style: LPText.bodyL),
+                  Text(pet.care.isEmpty ? 'Aucun soin particulier indiqué.' : pet.care, style: LPText.bodyL),
                   _title(
                     pet.species == Species.poisson ? 'Contact aquariophile' : 'Vétérinaire',
                     PhosphorIconsRegular.stethoscope,
                   ),
-                  if (pet.vet != null)
-                    Row(
-                      children: [
-                        Expanded(child: Text(pet.vet!, style: LPText.bodyL)),
-                        RoundIconButton(PhosphorIconsRegular.phone, tooltip: 'Appeler', fg: LP.primary),
-                      ],
-                    )
-                  else
-                    TextButton.icon(
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                      onPressed: () {},
-                      icon: const Icon(PhosphorIconsRegular.plus, size: 18),
-                      label: const Text('Ajouter un contact (facultatif)'),
-                    ),
+                  Text(pet.vet ?? 'Aucun contact indiqué.', style: LPText.bodyL),
                 ],
               ),
             ),
@@ -439,6 +430,14 @@ class MyPetsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Mes animaux')),
       body: ListView(
         children: [
+          if (vm.pets.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 24, 20, 0),
+              child: InfoNote(
+                'Aucun animal pour le moment. Ajoutez votre compagnon : son profil suivra vos demandes de garde.',
+                icon: PhosphorIconsRegular.pawPrint,
+              ),
+            ),
           for (final p in vm.pets) ...[
             InkWell(
               onTap: () => Navigator.pushNamed(context, R.pet, arguments: p),
@@ -453,8 +452,8 @@ class MyPetsScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(p.name, style: LPText.title),
-                          Text('${p.species.label} · ${p.breed}', style: LPText.bodyS),
-                          Text(p.age, style: LPText.bodyS),
+                          Text([p.species.label, p.breed].where((s) => s.isNotEmpty).join(' · '), style: LPText.bodyS),
+                          if (p.age.isNotEmpty) Text(p.age, style: LPText.bodyS),
                         ],
                       ),
                     ),

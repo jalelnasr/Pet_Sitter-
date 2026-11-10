@@ -28,6 +28,10 @@ class LPImage extends StatelessWidget {
       alignment: Alignment.center,
       child: Icon(error ? PhosphorIconsRegular.image : PhosphorIconsRegular.pawPrint, color: LP.softDeep, size: 28),
     );
+    // Pas encore de photo (animal ajouté sans photo) : patte, sans requête réseau.
+    if (url.trim().isEmpty) {
+      return ClipRRect(borderRadius: BorderRadius.circular(radius), child: placeholder());
+    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: Image.network(

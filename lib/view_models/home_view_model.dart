@@ -1,27 +1,39 @@
-import 'package:flutter/material.dart' show DateTimeRange;
 import 'package:pet_sitter/core/mvvm/view_model.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/data/repositories/cart_repository.dart';
 import 'package:pet_sitter/data/repositories/pet_repository.dart';
 import 'package:pet_sitter/data/repositories/shop_repository.dart';
-import 'package:pet_sitter/data/repositories/sitter_repository.dart';
+import 'package:pet_sitter/events/event_models.dart';
+import 'package:pet_sitter/events/event_repository.dart';
 import 'package:pet_sitter/models/models.dart';
 
-/// Accueil propriétaire : moteur de recherche, sitters proches, animaux, produits suggérés.
+/// Accueil propriétaire : salutation, accès à la garde, événements publiés,
+/// produits suggérés pour ses animaux et ses compagnons.
 class HomeViewModel extends ViewModel {
   HomeViewModel({
-    required SitterRepository sitters,
     required PetRepository pets,
     required ShopRepository shop,
     required CartRepository cart,
     AuthSession? session,
-  }) : _sitters = sitters,
-       _pets = pets,
+    EventRepository? events,
+    DateTime Function()? now,
+  }) : _pets = pets,
        _shop = shop,
        _cart = cart,
-       _session = session {
+       _session = session,
+       _eventsRepo = events,
+       _now = now ?? DateTime.now {
+    _pets.addListener(notify);
     _loadShop();
+    _loadEvents();
   }
+
+  final AuthSession? _session;
+  final PetRepository _pets;
+  final ShopRepository _shop;
+  final CartRepository _cart;
+  final EventRepository? _eventsRepo;
+  final DateTime Function() _now;
 
   /// Les suggestions sont facultatives : sans catalogue, l'accueil les masque simplement.
   Future<void> _loadShop() async {
@@ -33,18 +45,22 @@ class HomeViewModel extends ViewModel {
     }
   }
 
-  final AuthSession? _session;
+  List<PetEvent> _highlights = const [];
 
-  final SitterRepository _sitters;
-  final PetRepository _pets;
-  final ShopRepository _shop;
-  final CartRepository _cart;
+  /// Prochains événements publiés (backend) ; vide hors connexion ou sans événement.
+  List<PetEvent> get highlights => _highlights;
 
-  /// Critères saisis dans le moteur de recherche.
-  final SearchQuery query = SearchQuery();
-
-  Species? _filter = Species.chat;
-  Species? get filter => _filter;
+  Future<void> _loadEvents() async {
+    final repo = _eventsRepo;
+    if (repo == null) return;
+    try {
+      final events = await repo.fetchEvents(upcomingOnly: true);
+      _highlights = events.where((e) => e.status == EventStatus.published).take(4).toList();
+      notify();
+    } catch (_) {
+      // L'onglet Événements affiche l'erreur et propose de réessayer.
+    }
+  }
 
   /// Compte connecté ; sans compte (aperçus du sommaire), la propriétaire de démonstration.
   AppUser? get _user => _session?.user;
@@ -52,10 +68,19 @@ class HomeViewModel extends ViewModel {
   String get ownerName => _user?.fullName ?? _pets.ownerFullName;
   String get ownerPhoto => _user == null ? _pets.ownerPhoto : (_user!.photoUrl ?? '');
   List<Pet> get pets => _pets.myPets();
-  List<(String, String)> get cities => _sitters.cities();
 
-  List<Sitter> get nearbySitters =>
-      _sitters.all().where((s) => _filter == null || s.species.contains(_filter)).toList();
+  String get greeting => _now().hour < 18 ? 'Bonne journée ! Qui gardons-nous ?' : 'Bonne soirée ! Qui gardons-nous ?';
+
+  /// « Pour Rex et Mimi · livraison offerte dès 80 DT », d'après les animaux du compte.
+  String get shopSubtitle {
+    final names = pets.map((p) => p.name).where((n) => n.isNotEmpty).toList();
+    final delivery = 'livraison offerte dès ${CartRepository.freeShippingFrom} DT';
+    if (names.isEmpty) return 'Accessoires et nourriture · $delivery';
+    final who = names.length == 1
+        ? names.first
+        : '${names.sublist(0, names.length - 1).join(', ')} et ${names.last}';
+    return 'Pour $who · $delivery';
+  }
 
   List<Product> get recommendedProducts => _shop.recommendedFor(pets.map((p) => p.species));
 
@@ -64,26 +89,9 @@ class HomeViewModel extends ViewModel {
     if (option != null) _cart.add(p, option);
   }
 
-  void setFilter(Species? s) {
-    _filter = s;
-    if (s != null) query.species = s;
-    notify();
-  }
-
-  void setPlace(String area, String city) {
-    query
-      ..area = area
-      ..city = city;
-    notify();
-  }
-
-  void setDates(DateTimeRange r) {
-    query.dates = r;
-    notify();
-  }
-
-  void setService(ServiceType s) {
-    query.service = s;
-    notify();
+  @override
+  void dispose() {
+    _pets.removeListener(notify);
+    super.dispose();
   }
 }

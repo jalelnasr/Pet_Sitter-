@@ -151,7 +151,6 @@ void main() {
     test('l\'accueil propriétaire salue le compte connecté', () async {
       await auth.signUp(firstName: 'Rayen', lastName: 'Borgi', email: 'rayen@exemple.tn', password: 'rayen2026');
       final vm = HomeViewModel(
-        sitters: MockSitterRepository(),
         pets: MockPetRepository(),
         shop: MockShopRepository(),
         cart: CartRepository(),

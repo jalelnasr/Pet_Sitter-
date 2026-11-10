@@ -43,13 +43,17 @@ class _OwnerShellState extends State<OwnerShell> {
     NavItem(PhosphorIconsRegular.house, PhosphorIconsFill.house, 'Accueil'),
     NavItem(PhosphorIconsRegular.storefront, PhosphorIconsFill.storefront, 'Boutique'),
     NavItem(PhosphorIconsRegular.dog, PhosphorIconsFill.dog, 'Garde'),
-    NavItem(PhosphorIconsRegular.chatCircleDots, PhosphorIconsFill.chatCircleDots, 'Messages', badge: true),
+    NavItem(PhosphorIconsRegular.chatCircleDots, PhosphorIconsFill.chatCircleDots, 'Messages'),
     NavItem(PhosphorIconsRegular.pawPrint, PhosphorIconsFill.pawPrint, 'Adoption'),
     NavItem(PhosphorIconsRegular.userCircle, PhosphorIconsFill.userCircle, 'Profil'),
   ];
 
   Widget _page() => switch (_tab) {
-    OwnerTab.home => OwnerHomeScreen(onOpenShop: () => setState(() => _tab = OwnerTab.shop), preview: _initialPreview),
+    OwnerTab.home => OwnerHomeScreen(
+      onOpenShop: () => setState(() => _tab = OwnerTab.shop),
+      onOpenGarde: () => setState(() => _tab = OwnerTab.bookings),
+      preview: _initialPreview,
+    ),
     OwnerTab.shop => ShopScreen(preview: _initialPreview),
     OwnerTab.bookings => const SitterListScreen(),
     OwnerTab.messages => const MessagesListScreen(),

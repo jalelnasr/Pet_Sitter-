@@ -26,17 +26,16 @@ import 'package:pet_sitter/views/shop/shop_screens.dart';
 /// Index des onglets de l'espace pet sitter.
 class SitterTab {
   SitterTab._();
-  static const home = 0;
-  static const gardes = 1;
-  static const events = 2;
-  static const adoption = 3;
-  static const messages = 4;
-  static const shop = 5;
-  static const account = 6;
+  static const gardes = 0;
+  static const events = 1;
+  static const adoption = 2;
+  static const messages = 3;
+  static const shop = 4;
+  static const account = 5;
 }
 
-/// Navigation pet sitter : Accueil, Mes gardes (module Garde), Événements, Adoption, Messages, Profil.
-/// Le calendrier de disponibilité reste accessible depuis l'accueil.
+/// Navigation pet sitter : Mes gardes (module Garde, demandes réelles), Événements, Adoption,
+/// Messages, Boutique, Profil.
 class SitterShell extends StatefulWidget {
   const SitterShell({super.key, this.initialTab = 0, this.preview});
   final int initialTab;
@@ -52,17 +51,15 @@ class _SitterShellState extends State<SitterShell> {
   late int _tab = widget.initialTab;
 
   static const _items = [
-    NavItem(PhosphorIconsRegular.squaresFour, PhosphorIconsFill.squaresFour, 'Accueil'),
     NavItem(PhosphorIconsRegular.dog, PhosphorIconsFill.dog, 'Mes gardes'),
     NavItem(PhosphorIconsRegular.calendarBlank, PhosphorIconsFill.calendarBlank, 'Événements'),
     NavItem(PhosphorIconsRegular.pawPrint, PhosphorIconsFill.pawPrint, 'Adoption'),
-    NavItem(PhosphorIconsRegular.chatCircleDots, PhosphorIconsFill.chatCircleDots, 'Messages', badge: true),
+    NavItem(PhosphorIconsRegular.chatCircleDots, PhosphorIconsFill.chatCircleDots, 'Messages'),
     NavItem(PhosphorIconsRegular.storefront, PhosphorIconsFill.storefront, 'Boutique'),
     NavItem(PhosphorIconsRegular.userCircle, PhosphorIconsFill.userCircle, 'Profil'),
   ];
 
   Widget _page() => switch (_tab) {
-    SitterTab.home => SitterDashboardScreen(preview: _tab == widget.initialTab ? widget.preview : null),
     SitterTab.gardes => const SitterSpaceScreen(),
     SitterTab.events => const EventsListScreen(),
     SitterTab.adoption => const AdoptionListScreen(),
@@ -762,11 +759,12 @@ class _SitterAccount extends StatelessWidget {
             subtitle: 'Suivi et annulation',
             onTap: () => Navigator.pushNamed(context, R.myOrders),
           ),
-          LPListTile(
-            icon: PhosphorIconsRegular.tag,
-            title: 'Services et tarifs',
-            onTap: () => Navigator.pushNamed(context, R.services),
-          ),
+          if (user == null)
+            LPListTile(
+              icon: PhosphorIconsRegular.tag,
+              title: 'Services et tarifs',
+              onTap: () => Navigator.pushNamed(context, R.services),
+            ),
           if (user == null) ...[
             const LPListTile(
               icon: PhosphorIconsRegular.sealCheck,

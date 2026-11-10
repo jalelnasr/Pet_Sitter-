@@ -7,6 +7,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/core/motion/gsap.dart';
 import 'package:pet_sitter/core/mvvm/view_model.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
@@ -122,6 +123,7 @@ class _AdoptionListScreenState extends State<AdoptionListScreen> {
                   ],
                 ),
               ).from(y: -14, duration: 0.5),
+              if (!AuthSession.instance.isAuthenticated)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                 child: Row(

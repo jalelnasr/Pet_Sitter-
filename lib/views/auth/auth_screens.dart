@@ -690,7 +690,7 @@ class _RoleChoiceScreenState extends State<RoleChoiceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Bienvenue, ${vm.firstName ?? 'Leïla'}', style: LPText.overline.copyWith(color: LP.accentInk)),
+              Text(vm.firstName == null ? 'Bienvenue' : 'Bienvenue, ${vm.firstName}', style: LPText.overline.copyWith(color: LP.accentInk)),
               const SizedBox(height: 10),
               Text('Comment souhaitez-vous utiliser Pet Sitter ?', style: LPText.h1),
               const SizedBox(height: 28),

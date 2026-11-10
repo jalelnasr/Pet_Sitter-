@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:pet_sitter/app/dependencies.dart';
 import 'package:pet_sitter/core/mvvm/view_model.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
+import 'package:pet_sitter/models/models.dart' as app show AppRole, Pet, Species;
 import 'package:pet_sitter/core/theme/app_theme.dart';
 // import common
 import 'package:pet_sitter/petsitter/petsitter_models.dart';
@@ -18,6 +21,9 @@ import 'package:pet_sitter/petsitter/petsitter_ai.dart';
 
 class SitterListScreen extends StatelessWidget {
   const SitterListScreen({super.key});
+
+  /// Rôle du compte connecté (null sans compte : tous les raccourcis de test).
+  app.AppRole? get _role => AuthSession.instance.user?.role;
 
   @override
   Widget build(BuildContext context) {
@@ -128,33 +134,39 @@ class SitterListScreen extends StatelessWidget {
                           MaterialPageRoute(builder: (_) => const MatchmakingScreen()),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      ActionChip(
-                        avatar: const Icon(PhosphorIconsRegular.house, size: 14),
-                        label: const Text('Accueil général'),
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const OwnerShell()),
+                      if (_role == null) ...[
+                        const SizedBox(width: 8),
+                        ActionChip(
+                          avatar: const Icon(PhosphorIconsRegular.house, size: 14),
+                          label: const Text('Accueil général'),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const OwnerShell()),
+                          ),
                         ),
-                      ),
+                      ],
                       const SizedBox(width: 8),
                       ActionChip(
                         avatar: const Icon(PhosphorIconsRegular.calendarBlank, size: 14),
                         label: const Text('Mes réservations'),
                         onPressed: () => Navigator.pushNamed(context, PetsitterRoutes.myReservations),
                       ),
-                      const SizedBox(width: 8),
-                      ActionChip(
-                        avatar: const Icon(PhosphorIconsRegular.userCircle, size: 14),
-                        label: const Text('Espace Sitter'),
-                        onPressed: () => Navigator.pushNamed(context, PetsitterRoutes.sitterDashboard),
-                      ),
-                      const SizedBox(width: 8),
-                      ActionChip(
-                        avatar: const Icon(PhosphorIconsRegular.shieldCheck, size: 14),
-                        label: const Text('Admin Sitters'),
-                        onPressed: () => Navigator.pushNamed(context, PetsitterRoutes.adminSitters),
-                      ),
+                      if (_role == null || _role == app.AppRole.petsitter) ...[
+                        const SizedBox(width: 8),
+                        ActionChip(
+                          avatar: const Icon(PhosphorIconsRegular.userCircle, size: 14),
+                          label: const Text('Espace Sitter'),
+                          onPressed: () => Navigator.pushNamed(context, PetsitterRoutes.sitterDashboard),
+                        ),
+                      ],
+                      if (_role == null || _role == app.AppRole.admin) ...[
+                        const SizedBox(width: 8),
+                        ActionChip(
+                          avatar: const Icon(PhosphorIconsRegular.shieldCheck, size: 14),
+                          label: const Text('Admin Sitters'),
+                          onPressed: () => Navigator.pushNamed(context, PetsitterRoutes.adminSitters),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -522,7 +534,9 @@ class ReservationFormScreen extends StatefulWidget {
 }
 
 class _ReservationFormScreenState extends State<ReservationFormScreen> {
-  final _petNameCtrl = TextEditingController(text: 'Simba');
+  /// Premier animal enregistré par le propriétaire (aucun nom inventé).
+  late final app.Pet? _firstPet = Deps.of(context).pets.myPets().firstOrNull;
+  late final _petNameCtrl = TextEditingController(text: _firstPet?.name ?? '');
   final _notesCtrl = TextEditingController();
 
   @override
@@ -535,7 +549,22 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
   @override
   Widget build(BuildContext context) {
     return ViewModelBuilder<ReservationFormViewModel>(
-      create: (_) => ReservationFormViewModel(sitter: widget.sitter),
+      create: (_) {
+        final vm = ReservationFormViewModel(sitter: widget.sitter);
+        final pet = _firstPet;
+        if (pet != null) {
+          vm.setPetName(pet.name);
+          final type = switch (pet.species) {
+            app.Species.chien => PetSpeciesType.dog,
+            app.Species.chat => PetSpeciesType.cat,
+            app.Species.oiseau => PetSpeciesType.bird,
+            app.Species.lapin => PetSpeciesType.rabbit,
+            _ => PetSpeciesType.other,
+          };
+          if (widget.sitter.acceptedPetTypes.contains(type)) vm.setPetType(type);
+        }
+        return vm;
+      },
       builder: (context, vm) {
         return Scaffold(
           appBar: AppBar(
@@ -646,7 +675,7 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
                   onChanged: vm.setPetName,
                   decoration: const InputDecoration(
                     labelText: 'Nom de l\'animal *',
-                    hintText: 'Ex: Simba, Rocky...',
+                    hintText: 'Ex. : Rocky, Noisette…',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -1148,10 +1177,12 @@ class SitterProfileFormScreen extends StatefulWidget {
 }
 
 class _SitterProfileFormScreenState extends State<SitterProfileFormScreen> {
-  late final _nameCtrl = TextEditingController(text: widget.profile?.fullName ?? 'Samira Ben Salem');
+  late final _nameCtrl = TextEditingController(
+    text: widget.profile?.fullName ?? AuthSession.instance.user?.fullName ?? '',
+  );
   late final _bioCtrl = TextEditingController(text: widget.profile?.bio ?? '');
-  late final _cityCtrl = TextEditingController(text: widget.profile?.city ?? 'La Marsa');
-  late final _phoneCtrl = TextEditingController(text: widget.profile?.phone ?? '+216 22 111 222');
+  late final _cityCtrl = TextEditingController(text: widget.profile?.city ?? AuthSession.instance.user?.city ?? '');
+  late final _phoneCtrl = TextEditingController(text: widget.profile?.phone ?? AuthSession.instance.user?.phone ?? '');
   late final _priceDayCtrl = TextEditingController(text: (widget.profile?.pricePerDay ?? 35.0).toInt().toString());
   late final _priceHourCtrl = TextEditingController(text: (widget.profile?.pricePerHour ?? 12.0).toInt().toString());
 

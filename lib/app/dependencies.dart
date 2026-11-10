@@ -58,15 +58,16 @@ class Deps extends InheritedWidget {
     child: child,
   );
 
-  /// Version connectée : comptes et messagerie passent par le backend Spring Boot,
-  /// les autres domaines gardent leurs données de démonstration.
+  /// Version connectée : aucune donnée inventée. Comptes, messagerie, boutique, garde,
+  /// adoption et événements passent par le backend ; les animaux sont ceux que le
+  /// propriétaire ajoute avec le formulaire.
   factory Deps.live({required Widget child}) {
     // Boutique : catalogue, commandes, avis et administration passent par le backend commun.
     final store = ApiClient(baseUrl: ApiConstants.baseUrl, session: AuthSession.instance);
     return Deps(
     auth: ApiAuthRepository(),
     sitters: MockSitterRepository(),
-    pets: MockPetRepository(),
+    pets: SessionPetRepository(AuthSession.instance),
     bookings: MockBookingRepository(),
     messages: ApiMessageRepository(),
     shop: ApiShopRepository(baseUrl: ApiConstants.baseUrl),
