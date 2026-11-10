@@ -1,5 +1,7 @@
 package com.petsitter.petsitter.controller;
 
+import com.petsitter.petsitter.security.PetSitterRoles;
+import com.petsitter.common.exception.UnauthorizedActionException;
 import com.petsitter.petsitter.dto.CreateReservationRequest;
 import com.petsitter.petsitter.dto.RejectReservationRequest;
 import com.petsitter.petsitter.dto.ReservationResponse;
@@ -28,8 +30,10 @@ import java.util.List;
 public class PetSitterReservationController {
 
     private final PetSitterReservationService reservationService;
+    private final PetSitterRoles roles;
 
-    public PetSitterReservationController(PetSitterReservationService reservationService) {
+    public PetSitterReservationController(PetSitterReservationService reservationService, PetSitterRoles roles) {
+        this.roles = roles;
         this.reservationService = reservationService;
     }
 
@@ -42,8 +46,7 @@ public class PetSitterReservationController {
     }
 
     private boolean checkIsAdmin(HttpServletRequest request) {
-        String uid = resolveUserId(request);
-        return "ADMIN_DEMO".equalsIgnoreCase(uid) || "admin".equalsIgnoreCase(uid);
+        return roles.isAdmin(resolveUserId(request));
     }
 
     @PostMapping
@@ -53,6 +56,9 @@ public class PetSitterReservationController {
             HttpServletRequest httpRequest
     ) {
         String ownerId = resolveUserId(httpRequest);
+        if (roles.isAdmin(ownerId)) {
+            throw new UnauthorizedActionException("Un administrateur ne réserve pas de garde.");
+        }
         ReservationResponse res = reservationService.createReservation(request, ownerId, null);
         return ResponseEntity.status(HttpStatus.CREATED).body(res);
     }

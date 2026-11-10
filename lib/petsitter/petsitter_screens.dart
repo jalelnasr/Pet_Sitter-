@@ -498,19 +498,23 @@ class SitterDetailsScreen extends StatelessWidget {
                   onPressed: () => openChatWith(context, userId: sitter.userId, subject: 'Garde avec ${sitter.fullName}'),
                   icon: const Icon(PhosphorIconsRegular.chatCircleDots, color: LP.primary),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.pushNamed(
-                        context,
-                        PetsitterRoutes.sitterBook,
-                        arguments: sitter,
-                      );
-                    },
-                    child: const Text('Réserver maintenant'),
+                // L'administrateur et le sitter lui-même ne réservent pas cette garde.
+                if (AuthSession.instance.user?.role != app.AppRole.admin &&
+                    AuthSession.instance.user?.id != sitter.userId) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        Navigator.pushNamed(
+                          context,
+                          PetsitterRoutes.sitterBook,
+                          arguments: sitter,
+                        );
+                      },
+                      child: const Text('Réserver maintenant'),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

@@ -1,5 +1,6 @@
 package com.petsitter.petsitter.controller;
 
+import com.petsitter.petsitter.security.PetSitterRoles;
 import com.petsitter.common.exception.UnauthorizedActionException;
 import com.petsitter.petsitter.dto.PetSitterStatsResponse;
 import com.petsitter.petsitter.dto.ReservationResponse;
@@ -29,8 +30,11 @@ public class PetSitterAdminController {
 
     private final PetSitterService sitterService;
     private final PetSitterReservationService reservationService;
+    private final PetSitterRoles roles;
 
-    public PetSitterAdminController(PetSitterService sitterService, PetSitterReservationService reservationService) {
+    public PetSitterAdminController(PetSitterService sitterService, PetSitterReservationService reservationService,
+                                    PetSitterRoles roles) {
+        this.roles = roles;
         this.sitterService = sitterService;
         this.reservationService = reservationService;
     }
@@ -41,7 +45,7 @@ public class PetSitterAdminController {
             h = request.getHeader("X-Demo-User-Id");
         }
         String uid = (h != null && !h.isBlank()) ? h.trim() : "";
-        if (!"ADMIN_DEMO".equalsIgnoreCase(uid) && !"admin".equalsIgnoreCase(uid)) {
+        if (!roles.isAdmin(uid)) {
             throw new UnauthorizedActionException("Accès réservé aux administrateurs.");
         }
     }

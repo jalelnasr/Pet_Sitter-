@@ -12,13 +12,17 @@ class ShopViewModel extends ViewModel {
   ShopViewModel({required ShopRepository shop, required PetRepository pets, required CartRepository cart})
     : _shop = shop,
       _cart = cart,
-      myPets = pets.myPets() {
+      _pets = pets {
+    _pets.addListener(notify);
     load();
   }
 
   final ShopRepository _shop;
   final CartRepository _cart;
-  final List<Pet> myPets;
+  final PetRepository _pets;
+
+  /// Animaux du compte connecté (la section « Pour … » n'apparaît que s'il en a).
+  List<Pet> get myPets => _pets.myPets();
 
   bool _loading = false;
   bool get loading => _loading;
@@ -91,6 +95,12 @@ class ShopViewModel extends ViewModel {
     _species = null;
     _category = null;
     notify();
+  }
+
+  @override
+  void dispose() {
+    _pets.removeListener(notify);
+    super.dispose();
   }
 }
 

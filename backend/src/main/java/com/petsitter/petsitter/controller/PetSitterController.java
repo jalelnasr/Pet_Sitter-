@@ -1,5 +1,6 @@
 package com.petsitter.petsitter.controller;
 
+import com.petsitter.petsitter.security.PetSitterRoles;
 import com.petsitter.petsitter.dto.CreateSitterRequest;
 import com.petsitter.petsitter.dto.SitterResponse;
 import com.petsitter.petsitter.dto.SitterSummaryResponse;
@@ -36,8 +37,10 @@ import java.util.Map;
 public class PetSitterController {
 
     private final PetSitterService sitterService;
+    private final PetSitterRoles roles;
 
-    public PetSitterController(PetSitterService sitterService) {
+    public PetSitterController(PetSitterService sitterService, PetSitterRoles roles) {
+        this.roles = roles;
         this.sitterService = sitterService;
     }
 
@@ -50,8 +53,7 @@ public class PetSitterController {
     }
 
     private boolean checkIsAdmin(HttpServletRequest request) {
-        String uid = resolveUserId(request);
-        return "ADMIN_DEMO".equalsIgnoreCase(uid) || "admin".equalsIgnoreCase(uid);
+        return roles.isAdmin(resolveUserId(request));
     }
 
     @GetMapping

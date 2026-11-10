@@ -1,5 +1,6 @@
 package com.petsitter.petsitter.controller;
 
+import com.petsitter.petsitter.security.PetSitterRoles;
 import com.petsitter.petsitter.dto.CreateReviewRequest;
 import com.petsitter.petsitter.dto.ReviewResponse;
 import com.petsitter.petsitter.service.PetSitterReviewService;
@@ -25,8 +26,10 @@ import java.util.List;
 public class PetSitterReviewController {
 
     private final PetSitterReviewService reviewService;
+    private final PetSitterRoles roles;
 
-    public PetSitterReviewController(PetSitterReviewService reviewService) {
+    public PetSitterReviewController(PetSitterReviewService reviewService, PetSitterRoles roles) {
+        this.roles = roles;
         this.reviewService = reviewService;
     }
 
@@ -39,8 +42,7 @@ public class PetSitterReviewController {
     }
 
     private boolean checkIsAdmin(HttpServletRequest request) {
-        String uid = resolveUserId(request);
-        return "ADMIN_DEMO".equalsIgnoreCase(uid) || "admin".equalsIgnoreCase(uid);
+        return roles.isAdmin(resolveUserId(request));
     }
 
     @PostMapping

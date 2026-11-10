@@ -110,6 +110,7 @@ public class EventService {
     @Transactional
     public EventResponse create(CreateEventRequest request, UserEntity actor) {
         requireAdmin(actor);
+        requireNotPast(request.date());
 
         if (request.endTime().isBefore(request.startTime())) {
             throw new BadRequestException("INVALID_TIME_RANGE", "L'heure de fin doit être après l'heure de début.");
@@ -144,6 +145,9 @@ public class EventService {
         requireAdmin(actor);
 
         Event event = find(id);
+        if (!request.date().equals(event.getDate())) {
+            requireNotPast(request.date());
+        }
         if (request.endTime().isBefore(request.startTime())) {
             throw new BadRequestException("INVALID_TIME_RANGE", "L'heure de fin doit être après l'heure de début.");
         }
@@ -235,6 +239,7 @@ public class EventService {
     @Transactional
     public EventResponse propose(CreateEventRequest request, UserEntity actor) {
         requirePetsitter(actor);
+        requireNotPast(request.date());
 
         if (request.endTime().isBefore(request.startTime())) {
             throw new BadRequestException("INVALID_TIME_RANGE", "L'heure de fin doit être après l'heure de début.");
@@ -288,6 +293,7 @@ public class EventService {
                     "Seules les propositions en attente ou refusées peuvent être modifiées."
             );
         }
+        requireNotPast(request.date());
 
         if (request.endTime().isBefore(request.startTime())) {
             throw new BadRequestException("INVALID_TIME_RANGE", "L'heure de fin doit être après l'heure de début.");
@@ -505,5 +511,13 @@ public class EventService {
 
     private String trimToNull(String value) {
         return (value == null || value.isBlank()) ? null : value.trim();
+    }
+
+    /** Un événement créé ou proposé ne peut pas avoir lieu dans le passé. */
+    private static void requireNotPast(LocalDate date) {
+        if (date != null && date.isBefore(LocalDate.now())) {
+            throw new BadRequestException("EVENT_DATE_PAST",
+                    "La date de l'événement est déjà passée : choisissez aujourd'hui ou une date à venir.");
+        }
     }
 }

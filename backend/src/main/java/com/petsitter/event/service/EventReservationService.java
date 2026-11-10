@@ -52,6 +52,9 @@ public class EventReservationService {
         if (user == null) {
             throw new UnauthorizedActionException("Authentification requise pour réserver.");
         }
+        if (user.getRole() == UserRole.ADMIN) {
+            throw new UnauthorizedActionException("Un administrateur ne réserve pas de place aux événements.");
+        }
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Événement non trouvé : " + eventId));

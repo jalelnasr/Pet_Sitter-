@@ -637,24 +637,29 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     PhosphorIconsRegular.userCircle,
                   ),
                   EventSeatsPanel(event: event),
-                  const SizedBox(height: 22),
-                  const InfoNote(
-                    'La réservation est gratuite et sans engagement : elle permet à l\'organisateur de préparer l\'accueil.',
-                    icon: PhosphorIconsRegular.info,
-                  ),
+                  if (!isAdmin) ...[
+                    const SizedBox(height: 22),
+                    const InfoNote(
+                      'La réservation est gratuite et sans engagement : elle permet à l\'organisateur de préparer l\'accueil.',
+                      icon: PhosphorIconsRegular.info,
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: BottomActionBar(
-        child: PawButton(
-          label: label,
-          icon: PhosphorIconsRegular.calendarPlus,
-          onPressed: canReserve ? () => _reserve(event) : null,
-        ),
-      ),
+      // L'administrateur gère l'événement (modifier, participants) mais ne réserve pas.
+      bottomNavigationBar: isAdmin
+          ? null
+          : BottomActionBar(
+              child: PawButton(
+                label: label,
+                icon: PhosphorIconsRegular.calendarPlus,
+                onPressed: canReserve ? () => _reserve(event) : null,
+              ),
+            ),
     );
   }
 }
@@ -1334,8 +1339,14 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   late EventCategory _category =
       widget.event?.category ?? EventCategory.adoption;
-  late DateTime _start = widget.event?.startDate ?? DateTime(2026, 11, 7, 10);
-  late DateTime _end = widget.event?.endDate ?? DateTime(2026, 11, 7, 17);
+  // Nouvel événement : demain de 10 h à 17 h (jamais une date déjà passée).
+  late DateTime _start = widget.event?.startDate ?? _tomorrowAt(10);
+  late DateTime _end = widget.event?.endDate ?? _tomorrowAt(17);
+
+  static DateTime _tomorrowAt(int hour) {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day + 1, hour);
+  }
   late String _image = widget.event?.imageUrl ?? EventMock.images.first;
 
   bool get _isEditing => widget.event != null;

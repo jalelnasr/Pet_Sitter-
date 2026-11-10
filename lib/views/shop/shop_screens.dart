@@ -227,7 +227,7 @@ class _ShopScreenState extends State<ShopScreen> {
             ),
 
           // Recommandés pour mes animaux
-          if (vm.ready && !vm.hasFilters) ...[
+          if (vm.ready && !vm.hasFilters && myPets.isNotEmpty && recommended.isNotEmpty) ...[
             const SizedBox(height: 26),
             Padding(
               padding: LP.pagePadding,
@@ -417,10 +417,12 @@ class _PromoBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: LP.pagePadding,
-      height: 132,
+      // Hauteur minimale : le bandeau grandit si le texte passe sur deux lignes (petits écrans).
+      constraints: const BoxConstraints(minHeight: 132),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(color: LP.night, borderRadius: BorderRadius.circular(LP.r28)),
       child: Stack(
+        alignment: AlignmentDirectional.centerStart,
         children: [
           Positioned(
             right: -30,
@@ -437,8 +439,8 @@ class _PromoBanner extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 18, 120, 18),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Pill(label: 'Livraison', bg: LP.accent, fg: LP.primaryDark, icon: PhosphorIconsBold.truck),
                 const SizedBox(height: 10),
