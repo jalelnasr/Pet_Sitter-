@@ -70,7 +70,7 @@ class Deps extends InheritedWidget {
     bookings: MockBookingRepository(),
     messages: ApiMessageRepository(),
     shop: ApiShopRepository(baseUrl: ApiConstants.baseUrl),
-    cart: CartRepository(demo: false, store: const ShopLocalStore()),
+    cart: CartRepository(demo: false, store: const ShopLocalStore(), session: AuthSession.instance),
     sitterSpace: MockSitterSpaceRepository(),
     orders: ApiOrderRepository(store),
     admin: ApiAdminRepository(store),

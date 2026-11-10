@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 
 import 'demo_session.dart';
 
+import 'package:pet_sitter/core/network/network_status.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
 
 import 'package:pet_sitter/core/config/api_constants.dart';
@@ -102,22 +103,26 @@ class ApiClient {
   Future<dynamic> _send(Future<http.Response> Function() request) async {
     try {
       final response = await request().timeout(ApiConstants.timeout);
+      NetworkStatus.instance.reportReachable();
       return _decode(response);
     } on ApiException {
       rethrow;
     } on TimeoutException {
+      NetworkStatus.instance.reportUnreachable();
       throw const ApiException(
         0,
         'TIMEOUT',
         'Le serveur met trop de temps Ã  rÃ©pondre. RÃ©essayez.',
       );
     } on SocketException {
+      NetworkStatus.instance.reportUnreachable();
       throw const ApiException(
         0,
         'NETWORK_ERROR',
         'Impossible de joindre le serveur. VÃ©rifiez que le backend est dÃ©marrÃ©.',
       );
     } on http.ClientException {
+      NetworkStatus.instance.reportUnreachable();
       throw const ApiException(
         0,
         'NETWORK_ERROR',

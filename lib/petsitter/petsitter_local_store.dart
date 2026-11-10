@@ -43,6 +43,12 @@ class SitterLocalStore {
     });
   }
 
+  /// Remplace tout le cache (recherche sans filtre) : les sitters retirés du serveur disparaissent.
+  Future<void> replaceAll(List<Map<String, dynamic>> sitters) async {
+    await AppDatabase.run((db) => db.delete(table));
+    await saveAll(sitters);
+  }
+
   /// Sitters enregistrés, les mieux notés d'abord ; filtres facultatifs.
   Future<List<Map<String, dynamic>>> readAll({String? search, String? governorate}) async {
     final where = <String>[];
@@ -60,5 +66,12 @@ class SitterLocalStore {
         'ORDER BY rating DESC, name';
     final rows = await AppDatabase.run((db) => db.rawQuery(sql, args));
     return [for (final row in rows ?? const []) jsonDecode(row['json'] as String) as Map<String, dynamic>];
+  }
+
+  /// Élément [id] de la liste enregistrée (résumé), ou `null`.
+  Future<Map<String, dynamic>?> readOne(String id) async {
+    final rows = await AppDatabase.run((db) => db.rawQuery('SELECT json FROM sitters_cache WHERE id = ?', [id]));
+    if (rows == null || rows.isEmpty) return null;
+    return jsonDecode(rows.first['json'] as String) as Map<String, dynamic>;
   }
 }

@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:pet_sitter/app/routes.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
+import 'package:pet_sitter/core/widgets/offline_banner.dart';
 import 'package:pet_sitter/views/onboarding/splash_screen.dart';
 
 class PetSitterApp extends StatefulWidget {
@@ -66,7 +67,7 @@ class _PetSitterAppState extends State<PetSitterApp> {
       // Sur grand écran (web), l'app est présentée dans un cadre de téléphone.
       builder: (context, child) {
         final size = MediaQuery.sizeOf(context);
-        if (size.width <= 520) return child!;
+        if (size.width <= 520) return OfflineBanner(child: child!);
         return ColoredBox(
           color: LP.softDeep,
           child: Center(
@@ -83,7 +84,7 @@ class _PetSitterAppState extends State<PetSitterApp> {
                 data: MediaQuery.of(
                   context,
                 ).copyWith(size: const Size(390, 844), padding: const EdgeInsets.only(top: 28, bottom: 12)),
-                child: child!,
+                child: OfflineBanner(child: child!),
               ),
             ),
           ),

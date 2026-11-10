@@ -1,8 +1,8 @@
 /// Module Boutique — catalogue hors ligne et panier enregistré dans SQLite.
 ///
 /// - `products_cache` : produits reçus du serveur, relus sans réseau.
-/// - `cart_items` : lignes du panier (produit, format, quantité). Le panier est
-///   retrouvé tel quel quand on rouvre l'application.
+/// - `cart_items` : lignes du panier (compte, produit, format, quantité). Chaque compte
+///   retrouve son propre panier quand il rouvre l'application ; `user_id` vide = sans compte.
 library;
 
 import 'dart:convert';
@@ -32,12 +32,22 @@ class ShopLocalStore {
 
   static const createCartTable = '''
     CREATE TABLE cart_items (
+      user_id TEXT NOT NULL DEFAULT '',
       product_id TEXT NOT NULL,
       option_label TEXT NOT NULL,
       qty INTEGER NOT NULL CHECK (qty > 0),
       added_at INTEGER NOT NULL,
-      PRIMARY KEY (product_id, option_label)
+      PRIMARY KEY (user_id, product_id, option_label)
     )''';
+
+  /// Version 1 → 2 : ajout du compte dans la clé (les lignes existantes restent « sans compte »).
+  static const migrateCartToV2 = [
+    'ALTER TABLE cart_items RENAME TO cart_items_v1',
+    createCartTable,
+    "INSERT INTO cart_items (user_id, product_id, option_label, qty, added_at) "
+        "SELECT '', product_id, option_label, qty, added_at FROM cart_items_v1",
+    'DROP TABLE cart_items_v1',
+  ];
 
   // ——— Catalogue
 
@@ -69,50 +79,47 @@ class ShopLocalStore {
 
   // ——— Panier (CRUD)
 
-  /// Ajoute une ligne, ou augmente sa quantité si le même format est déjà au panier.
-  Future<void> addToCart(String productId, String optionLabel, int qty) async {
+  /// Ajoute une ligne au panier de [userId], ou augmente sa quantité si le même format y est déjà.
+  Future<void> addToCart(String productId, String optionLabel, int qty, {String userId = ''}) async {
     await AppDatabase.run(
       (db) => db.transaction((txn) async {
         final updated = await txn.rawUpdate(
-          'UPDATE cart_items SET qty = qty + ? WHERE product_id = ? AND option_label = ?',
-          [qty, productId, optionLabel],
+          'UPDATE cart_items SET qty = qty + ? WHERE user_id = ? AND product_id = ? AND option_label = ?',
+          [qty, userId, productId, optionLabel],
         );
         if (updated == 0) {
-          await txn.rawInsert('INSERT INTO cart_items (product_id, option_label, qty, added_at) VALUES (?, ?, ?, ?)', [
-            productId,
-            optionLabel,
-            qty,
-            DateTime.now().millisecondsSinceEpoch,
-          ]);
+          await txn.rawInsert(
+            'INSERT INTO cart_items (user_id, product_id, option_label, qty, added_at) VALUES (?, ?, ?, ?, ?)',
+            [userId, productId, optionLabel, qty, DateTime.now().millisecondsSinceEpoch],
+          );
         }
       }),
     );
   }
 
-  /// Change la quantité d'une ligne ; 0 ou moins la supprime.
-  Future<void> updateQty(String productId, String optionLabel, int qty) async {
+  /// Change la quantité d'une ligne du panier de [userId] ; 0 ou moins la supprime.
+  Future<void> updateQty(String productId, String optionLabel, int qty, {String userId = ''}) async {
+    const where = 'user_id = ? AND product_id = ? AND option_label = ?';
+    final args = [userId, productId, optionLabel];
     await AppDatabase.run(
       (db) => qty <= 0
-          ? db.delete('cart_items', where: 'product_id = ? AND option_label = ?', whereArgs: [productId, optionLabel])
-          : db.update(
-              'cart_items',
-              {'qty': qty},
-              where: 'product_id = ? AND option_label = ?',
-              whereArgs: [productId, optionLabel],
-            ),
+          ? db.delete('cart_items', where: where, whereArgs: args)
+          : db.update('cart_items', {'qty': qty}, where: where, whereArgs: args),
     );
   }
 
-  Future<void> clearCart() async {
-    await AppDatabase.run((db) => db.delete('cart_items'));
+  /// Vide le panier de [userId] (les paniers des autres comptes restent).
+  Future<void> clearCart({String userId = ''}) async {
+    await AppDatabase.run((db) => db.delete('cart_items', where: 'user_id = ?', whereArgs: [userId]));
   }
 
-  /// Lignes du panier avec leur produit (jointure avec le catalogue enregistré).
-  Future<List<StoredCartLine>> readCart() async {
+  /// Lignes du panier de [userId] avec leur produit (jointure avec le catalogue enregistré).
+  Future<List<StoredCartLine>> readCart({String userId = ''}) async {
     final rows = await AppDatabase.run(
       (db) => db.rawQuery(
         'SELECT c.option_label, c.qty, p.json FROM cart_items c '
-        'JOIN products_cache p ON p.id = c.product_id ORDER BY c.added_at',
+        'JOIN products_cache p ON p.id = c.product_id WHERE c.user_id = ? ORDER BY c.added_at',
+        [userId],
       ),
     );
     return [

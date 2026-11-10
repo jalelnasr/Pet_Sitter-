@@ -1,6 +1,7 @@
 /// Appels au backend : jeton, décodage JSON et messages d'erreur lisibles.
 library;
 
+import 'package:pet_sitter/core/network/network_status.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -70,10 +71,13 @@ class ApiClient {
     try {
       response = await _client.send(request).then(http.Response.fromStream).timeout(timeout ?? _timeout);
     } on TimeoutException {
+      NetworkStatus.instance.reportUnreachable();
       throw const ApiException('Le serveur met trop de temps à répondre. Réessayez.');
     } on http.ClientException {
+      NetworkStatus.instance.reportUnreachable();
       throw const ApiException('Impossible de joindre le serveur. Vérifiez votre connexion.');
     }
+    NetworkStatus.instance.reportReachable();
     final decoded = _decode(response);
     if (response.statusCode >= 200 && response.statusCode < 300) return decoded;
     throw await _errorFrom(response.statusCode, decoded, hadToken: token != null);

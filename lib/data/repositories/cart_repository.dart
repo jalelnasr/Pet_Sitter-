@@ -5,9 +5,12 @@
 ///
 /// Avec un [ShopLocalStore], chaque changement est aussi écrit dans SQLite (table
 /// `cart_items`) et le panier est relu au démarrage : il survit à la fermeture de l'app.
+/// Avec une [AuthSession], chaque compte a son propre panier : à la déconnexion ou au
+/// changement de compte, le panier affiché devient celui du nouveau compte.
 library;
 
 import 'package:flutter/foundation.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/data/local/shop_local_store.dart';
 import 'package:pet_sitter/data/sources/mock_shop_data.dart';
 import 'package:pet_sitter/models/models.dart';
@@ -15,7 +18,12 @@ import 'package:pet_sitter/models/models.dart';
 class CartRepository extends ChangeNotifier {
   /// [demo] : panier de démonstration déjà rempli (deux produits).
   /// [store] : enregistrement du panier dans SQLite (application réelle).
-  CartRepository({bool demo = true, ShopLocalStore? store}) : _store = store {
+  /// [session] : un panier par compte connecté (application réelle).
+  CartRepository({bool demo = true, ShopLocalStore? store, AuthSession? session})
+    : _store = store,
+      _session = session,
+      _ownerId = session?.user?.id ?? '' {
+    session?.addListener(_onSessionChanged);
     if (store != null) restore();
     if (!demo) return;
     add(Shop.products[0], Shop.products[0].options.first);
@@ -32,6 +40,20 @@ class CartRepository extends ChangeNotifier {
   static const shippingFee = 7;
 
   final ShopLocalStore? _store;
+  final AuthSession? _session;
+
+  /// Compte propriétaire du panier affiché ('' = sans compte).
+  String _ownerId;
+
+  void _onSessionChanged() {
+    final userId = _session?.user?.id ?? '';
+    if (userId == _ownerId) return;
+    _ownerId = userId;
+    _lines.clear();
+    deliveryAddress = null;
+    notifyListeners();
+    if (_store != null) restore();
+  }
 
   /// Dernière adresse saisie, reprise à la commande suivante.
   DeliveryAddress? deliveryAddress;
@@ -46,7 +68,9 @@ class CartRepository extends ChangeNotifier {
 
   /// Relit le panier enregistré dans SQLite (SELECT avec jointure sur le catalogue).
   Future<void> restore() async {
-    final saved = await _store?.readCart() ?? const <StoredCartLine>[];
+    final owner = _ownerId;
+    final saved = await _store?.readCart(userId: owner) ?? const <StoredCartLine>[];
+    if (owner != _ownerId) return; // le compte a changé pendant la lecture
     var changed = false;
     for (final row in saved) {
       try {
@@ -71,7 +95,7 @@ class CartRepository extends ChangeNotifier {
     } else {
       _lines.add(CartLine(p, o, qty));
     }
-    _store?.addToCart(p.id, o.label, qty);
+    _store?.addToCart(p.id, o.label, qty, userId: _ownerId);
     notifyListeners();
   }
 
@@ -81,13 +105,19 @@ class CartRepository extends ChangeNotifier {
     } else {
       line.qty = qty;
     }
-    _store?.updateQty(line.product.id, line.option.label, qty);
+    _store?.updateQty(line.product.id, line.option.label, qty, userId: _ownerId);
     notifyListeners();
   }
 
   void clear() {
     _lines.clear();
-    _store?.clearCart();
+    _store?.clearCart(userId: _ownerId);
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _session?.removeListener(_onSessionChanged);
+    super.dispose();
   }
 }

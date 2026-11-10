@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:pet_sitter/models/species.dart';
 
 import 'adoption_local_store.dart';
+import 'package:pet_sitter/data/local/details_cache_store.dart';
 import 'adoption_models.dart';
 import 'api/api_client.dart';
 import 'api/demo_session.dart';
@@ -42,7 +43,12 @@ class AdoptionApiService {
     } on ApiException catch (e) {
       // Pas de réseau : annonces enregistrées dans SQLite.
       if (e.statusCode != 0) rethrow;
-      final saved = await _local.readAll(species: species == null ? null : _speciesApi(species));
+      var saved = await _local.readAll(species: species == null ? null : _speciesApi(species));
+      // Filtre par lieu appliqué aussi hors ligne.
+      final place = location?.trim().toLowerCase() ?? '';
+      if (place.isNotEmpty) {
+        saved = saved.where((j) => '${j['location'] ?? ''}'.toLowerCase().contains(place)).toList();
+      }
       if (saved.isEmpty) rethrow;
       return _pets(saved);
     }
@@ -55,9 +61,22 @@ class AdoptionApiService {
 
   final _local = const AdoptionLocalStore();
 
+  final _details = const DetailsCacheStore();
+
+  /// Fiche d'une annonce ; hors ligne, la fiche déjà ouverte (ou son résumé de la liste).
   Future<AdoptionPet> fetchListing(String id) async {
-    final json = await _client.get('/adoption-listings/$id');
-    return AdoptionPet.fromJson(_map(json));
+    final dynamic json;
+    try {
+      json = await _client.get('/adoption-listings/$id');
+    } on ApiException catch (e) {
+      if (e.statusCode != 0) rethrow;
+      final saved = await _details.read(DetailsCacheStore.adoption, id) ?? await _local.readOne(id);
+      if (saved == null) rethrow;
+      return AdoptionPet.fromJson(saved);
+    }
+    final map = _map(json);
+    await _details.save(DetailsCacheStore.adoption, id, map);
+    return AdoptionPet.fromJson(map);
   }
 
   Future<List<AdoptionPet>> fetchMine() async {

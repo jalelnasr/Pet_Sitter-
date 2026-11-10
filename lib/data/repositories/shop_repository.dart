@@ -1,6 +1,7 @@
 /// Catalogue de la boutique.
 library;
 
+import 'package:pet_sitter/core/network/network_status.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -78,6 +79,7 @@ class ApiShopRepository implements ShopRepository {
       while (page < totalPages) {
         final url = Uri.parse('$baseUrl/products?page=$page&size=$_pageSize');
         final response = await _client.get(url).timeout(_timeout);
+        NetworkStatus.instance.reportReachable();
         if (response.statusCode != 200) {
           throw const ShopException('La boutique est indisponible pour le moment. Réessayez.');
         }
@@ -94,8 +96,10 @@ class ApiShopRepository implements ShopRepository {
     } on ShopException {
       rethrow;
     } on TimeoutException {
+      NetworkStatus.instance.reportUnreachable();
       throw const ShopException('Le serveur met trop de temps à répondre. Réessayez.', offline: true);
     } on http.ClientException {
+      NetworkStatus.instance.reportUnreachable();
       throw const ShopException('Impossible de joindre la boutique. Vérifiez votre connexion.', offline: true);
     } on FormatException {
       throw const ShopException('La boutique a envoyé une réponse illisible.');

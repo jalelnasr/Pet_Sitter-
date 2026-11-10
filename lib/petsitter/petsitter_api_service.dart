@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:pet_sitter/core/config/api_constants.dart';
+import 'package:pet_sitter/core/network/network_status.dart';
+import 'package:pet_sitter/data/local/details_cache_store.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/petsitter/petsitter_local_store.dart';
 import 'package:pet_sitter/petsitter/petsitter_models.dart';
@@ -42,6 +44,7 @@ class PetSitterApiService {
   }
 
   dynamic _handleResponse(http.Response response) {
+    NetworkStatus.instance.reportReachable();
     final body = response.body.trim();
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (body.isEmpty) return null;
@@ -104,6 +107,7 @@ class PetSitterApiService {
     } on Exception catch (e) {
       // Pas de réseau (délai dépassé, serveur injoignable) : sitters enregistrés dans SQLite.
       if (e is! TimeoutException && e is! SocketException && e is! http.ClientException) rethrow;
+      NetworkStatus.instance.reportUnreachable();
       final saved = await _local.readAll(search: search, governorate: governorate);
       if (saved.isEmpty) rethrow;
       return saved.map(PetSitter.fromJson).toList();
@@ -112,7 +116,18 @@ class PetSitterApiService {
 
     if (data is Map<String, dynamic> && data['content'] is List) {
       final items = (data['content'] as List).whereType<Map<String, dynamic>>().toList();
-      await _local.saveAll(items);
+      // Recherche complète (sans filtre, première page) : le cache est remplacé, les sitters
+      // retirés du serveur disparaissent. Sinon les sitters reçus sont ajoutés ou mis à jour.
+      final unfiltered = page == 0 &&
+          (search == null || search.trim().isEmpty) &&
+          (governorate == null || governorate.trim().isEmpty) &&
+          service == null && petType == null && minPrice == null && maxPrice == null &&
+          minRating == null && verifiedOnly != true;
+      if (unfiltered) {
+        await _local.replaceAll(items);
+      } else {
+        await _local.saveAll(items);
+      }
       return items.map(PetSitter.fromJson).toList();
     }
     return [];
@@ -120,13 +135,24 @@ class PetSitterApiService {
 
   final _local = const SitterLocalStore();
 
+  final _details = const DetailsCacheStore();
+
+  /// Profil d'un sitter ; hors ligne, le profil déjà ouvert (ou son résumé de la liste).
   Future<PetSitter> getSitterById(String id) async {
     final uri = Uri.parse('$_baseUrl/sitters/$id');
-    final response = await _client
-        .get(uri, headers: _headers())
-        .timeout(ApiConstants.timeout);
-    final data = _handleResponse(response);
-    return PetSitter.fromJson(data as Map<String, dynamic>);
+    final http.Response response;
+    try {
+      response = await _client.get(uri, headers: _headers()).timeout(ApiConstants.timeout);
+    } on Exception catch (e) {
+      if (e is! TimeoutException && e is! SocketException && e is! http.ClientException) rethrow;
+      NetworkStatus.instance.reportUnreachable();
+      final saved = await _details.read(DetailsCacheStore.sitters, id) ?? await _local.readOne(id);
+      if (saved == null) rethrow;
+      return PetSitter.fromJson(saved);
+    }
+    final data = _handleResponse(response) as Map<String, dynamic>;
+    await _details.save(DetailsCacheStore.sitters, id, data);
+    return PetSitter.fromJson(data);
   }
 
   Future<PetSitter?> getMyProfile() async {

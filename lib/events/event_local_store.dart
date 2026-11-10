@@ -61,4 +61,11 @@ class EventLocalStore {
     final rows = await AppDatabase.run((db) => db.rawQuery(sql, args));
     return [for (final row in rows ?? const []) jsonDecode(row['json'] as String) as Map<String, dynamic>];
   }
+
+  /// Élément [id] de la liste enregistrée (résumé), ou `null`.
+  Future<Map<String, dynamic>?> readOne(String id) async {
+    final rows = await AppDatabase.run((db) => db.rawQuery('SELECT json FROM events_cache WHERE id = ?', [id]));
+    if (rows == null || rows.isEmpty) return null;
+    return jsonDecode(rows.first['json'] as String) as Map<String, dynamic>;
+  }
 }

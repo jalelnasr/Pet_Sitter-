@@ -14,6 +14,7 @@ import 'package:pet_sitter/adoption/api/demo_session.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
 
 import 'event_local_store.dart';
+import 'package:pet_sitter/data/local/details_cache_store.dart';
 import 'event_models.dart';
 
 class EventApiService {
@@ -55,8 +56,14 @@ class EventApiService {
       // Pas de réseau : événements enregistrés dans SQLite.
       if (e.statusCode != 0) rethrow;
       final saved = await _local.readAll(category: category?.apiValue, search: search);
-      if (saved.isEmpty) rethrow;
-      return _parseEvents(saved);
+      // Filtres « à venir » et statut appliqués aussi hors ligne.
+      final now = DateTime.now();
+      final events = _parseEvents(saved)
+          .where((e) => upcomingOnly != true || e.startDate.isAfter(now))
+          .where((e) => status == null || e.status == status)
+          .toList();
+      if (events.isEmpty) rethrow;
+      return events;
     }
     if (category == null && (search == null || search.trim().isEmpty) && status == null) {
       final items = json is Map<String, dynamic> ? json['content'] : json;
@@ -67,9 +74,22 @@ class EventApiService {
 
   final _local = const EventLocalStore();
 
+  final _details = const DetailsCacheStore();
+
+  /// Fiche d'un événement ; hors ligne, la fiche déjà ouverte (ou son résumé de la liste).
   Future<PetEvent> fetchEvent(String id) async {
-    final json = await _client.get('/events/$id');
-    return PetEvent.fromJson(_map(json));
+    final dynamic json;
+    try {
+      json = await _client.get('/events/$id');
+    } on ApiException catch (e) {
+      if (e.statusCode != 0) rethrow;
+      final saved = await _details.read(DetailsCacheStore.events, id) ?? await _local.readOne(id);
+      if (saved == null) rethrow;
+      return PetEvent.fromJson(saved);
+    }
+    final map = _map(json);
+    await _details.save(DetailsCacheStore.events, id, map);
+    return PetEvent.fromJson(map);
   }
 
   Future<List<PetEvent>> fetchMine() async {
