@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pet_sitter/app/app.dart';
 import 'package:pet_sitter/app/dependencies.dart';
 import 'package:pet_sitter/app/session_bridge.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
+import 'package:pet_sitter/data/local/session_sqlite_store.dart';
 import 'package:pet_sitter/data/sources/local_session_store.dart';
 
 /// Données de démonstration seulement (sans backend) :
@@ -24,7 +26,8 @@ Future<void> main() async {
 
   final session = AuthSession.instance;
   if (!_demoData) {
-    session.useStore(LocalSessionStore());
+    // Téléphone : session dans SQLite. Navigateur (pas de SQLite) : stockage du navigateur.
+    session.useStore(kIsWeb ? LocalSessionStore() : SessionSqliteStore());
     await session.restore();
   }
   // Adoption, Événements et Garde suivent le compte connecté.

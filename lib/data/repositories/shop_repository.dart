@@ -5,13 +5,17 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:pet_sitter/data/local/shop_local_store.dart';
 import 'package:pet_sitter/data/sources/mock_shop_data.dart';
 import 'package:pet_sitter/models/models.dart';
 
 /// Erreur lisible, affichée telle quelle à l'utilisateur.
 class ShopException implements Exception {
-  const ShopException(this.message);
+  const ShopException(this.message, {this.offline = false});
   final String message;
+
+  /// Serveur injoignable (et non réponse en erreur).
+  final bool offline;
   @override
   String toString() => message;
 }
@@ -50,9 +54,24 @@ class ApiShopRepository implements ShopRepository {
 
   List<Product> _products = const [];
 
+  final _local = const ShopLocalStore();
+
   @override
   Future<void> load() async {
     try {
+      await _loadFromServer();
+    } on ShopException catch (e) {
+      // Pas de réseau : catalogue enregistré dans SQLite (s'il a déjà été chargé une fois).
+      if (!e.offline) rethrow;
+      final saved = await _local.readProducts();
+      if (saved.isEmpty) rethrow;
+      _products = [for (final p in saved) Product.fromJson(p)];
+    }
+  }
+
+  Future<void> _loadFromServer() async {
+    try {
+      final raw = <Map<String, dynamic>>[];
       final all = <Product>[];
       var page = 0;
       var totalPages = 1;
@@ -63,17 +82,21 @@ class ApiShopRepository implements ShopRepository {
           throw const ShopException('La boutique est indisponible pour le moment. Réessayez.');
         }
         final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-        all.addAll([for (final p in body['items'] as List) Product.fromJson(p as Map<String, dynamic>)]);
+        for (final p in body['items'] as List) {
+          raw.add(p as Map<String, dynamic>);
+          all.add(Product.fromJson(p));
+        }
         totalPages = body['totalPages'] as int;
         page++;
       }
       _products = all;
+      await _local.saveProducts(raw);
     } on ShopException {
       rethrow;
     } on TimeoutException {
-      throw const ShopException('Le serveur met trop de temps à répondre. Réessayez.');
+      throw const ShopException('Le serveur met trop de temps à répondre. Réessayez.', offline: true);
     } on http.ClientException {
-      throw const ShopException('Impossible de joindre la boutique. Vérifiez votre connexion.');
+      throw const ShopException('Impossible de joindre la boutique. Vérifiez votre connexion.', offline: true);
     } on FormatException {
       throw const ShopException('La boutique a envoyé une réponse illisible.');
     } on TypeError {

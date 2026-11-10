@@ -8,6 +8,7 @@ library;
 
 import 'package:pet_sitter/adoption/api/api_client.dart';
 import 'package:pet_sitter/core/utils/format.dart';
+import 'package:pet_sitter/data/local/message_local_store.dart';
 import 'package:pet_sitter/data/sources/mock_data.dart';
 import 'package:pet_sitter/models/models.dart';
 
@@ -439,9 +440,21 @@ class ApiMessageRepository implements MessageRepository {
 
   @override
   Future<List<Conversation>> conversations({bool asSitter = false}) => _call(() async {
-    final json = await _api.get('/conversations') as List<dynamic>;
+    final List<dynamic> json;
+    try {
+      json = await _api.get('/conversations') as List<dynamic>;
+    } on ApiException catch (e) {
+      // Pas de réseau : conversations enregistrées dans SQLite.
+      if (e.statusCode != 0) rethrow;
+      final saved = await _local.readConversations();
+      if (saved.isEmpty) rethrow;
+      return saved.map(_conversation).toList();
+    }
+    await _local.saveConversations(json.whereType<Map<String, dynamic>>().toList());
     return json.map((e) => _conversation(e as Map<String, dynamic>)).toList();
   });
+
+  final _local = const MessageLocalStore();
 
   @override
   Future<Conversation> openConversation({required String userId, String? subject, String? firstMessage}) =>
@@ -456,10 +469,20 @@ class ApiMessageRepository implements MessageRepository {
 
   @override
   Future<List<ChatMessage>> messages(String conversationId, {String? afterId}) => _call(() async {
-    final json = await _api.get(
-      '/conversations/$conversationId/messages',
-      query: {'afterId': afterId, 'limit': '100'},
-    ) as List<dynamic>;
+    final List<dynamic> json;
+    try {
+      json = await _api.get(
+        '/conversations/$conversationId/messages',
+        query: {'afterId': afterId, 'limit': '100'},
+      ) as List<dynamic>;
+    } on ApiException catch (e) {
+      // Pas de réseau : messages enregistrés dans SQLite (premier chargement seulement).
+      if (e.statusCode != 0 || afterId != null) rethrow;
+      final saved = await _local.readMessages(conversationId);
+      if (saved.isEmpty) rethrow;
+      return saved.map(_message).toList();
+    }
+    await _local.saveMessages(conversationId, json.whereType<Map<String, dynamic>>().toList());
     return json.map((e) => _message(e as Map<String, dynamic>)).toList();
   });
 

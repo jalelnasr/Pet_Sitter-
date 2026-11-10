@@ -9,6 +9,7 @@ import 'package:pet_sitter/data/repositories/admin_repository.dart';
 import 'package:pet_sitter/data/repositories/auth_repository.dart';
 import 'package:pet_sitter/data/repositories/booking_repository.dart';
 import 'package:pet_sitter/data/repositories/cart_repository.dart';
+import 'package:pet_sitter/data/local/shop_local_store.dart';
 import 'package:pet_sitter/data/repositories/message_repository.dart';
 import 'package:pet_sitter/data/repositories/order_repository.dart';
 import 'package:pet_sitter/data/repositories/pet_repository.dart';
@@ -69,7 +70,7 @@ class Deps extends InheritedWidget {
     bookings: MockBookingRepository(),
     messages: ApiMessageRepository(),
     shop: ApiShopRepository(baseUrl: ApiConstants.baseUrl),
-    cart: CartRepository(demo: false),
+    cart: CartRepository(demo: false, store: const ShopLocalStore()),
     sitterSpace: MockSitterSpaceRepository(),
     orders: ApiOrderRepository(store),
     admin: ApiAdminRepository(store),

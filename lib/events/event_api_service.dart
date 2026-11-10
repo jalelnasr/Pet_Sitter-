@@ -13,6 +13,7 @@ import 'package:pet_sitter/adoption/api/api_client.dart';
 import 'package:pet_sitter/adoption/api/demo_session.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
 
+import 'event_local_store.dart';
 import 'event_models.dart';
 
 class EventApiService {
@@ -39,17 +40,32 @@ class EventApiService {
     bool? upcomingOnly,
     EventStatus? status,
   }) async {
-    final json = await _client.get(
-      '/events',
-      query: {
-        'category': category == null ? null : category.apiValue,
-        'search': (search != null && search.trim().isNotEmpty) ? search.trim() : null,
-        'upcomingOnly': upcomingOnly == true ? 'true' : null,
-        'status': status == null ? null : status.apiValue,
-      },
-    );
+    final dynamic json;
+    try {
+      json = await _client.get(
+        '/events',
+        query: {
+          'category': category == null ? null : category.apiValue,
+          'search': (search != null && search.trim().isNotEmpty) ? search.trim() : null,
+          'upcomingOnly': upcomingOnly == true ? 'true' : null,
+          'status': status == null ? null : status.apiValue,
+        },
+      );
+    } on ApiException catch (e) {
+      // Pas de réseau : événements enregistrés dans SQLite.
+      if (e.statusCode != 0) rethrow;
+      final saved = await _local.readAll(category: category?.apiValue, search: search);
+      if (saved.isEmpty) rethrow;
+      return _parseEvents(saved);
+    }
+    if (category == null && (search == null || search.trim().isEmpty) && status == null) {
+      final items = json is Map<String, dynamic> ? json['content'] : json;
+      if (items is List) await _local.saveAll(items.whereType<Map<String, dynamic>>().toList());
+    }
     return _parseEvents(json);
   }
+
+  final _local = const EventLocalStore();
 
   Future<PetEvent> fetchEvent(String id) async {
     final json = await _client.get('/events/$id');

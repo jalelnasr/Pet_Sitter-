@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:pet_sitter/models/species.dart';
 
+import 'adoption_local_store.dart';
 import 'adoption_models.dart';
 import 'api/api_client.dart';
 import 'api/demo_session.dart';
@@ -27,17 +28,32 @@ class AdoptionApiService {
     Species? species,
     String? location,
   }) async {
-    final json = await _client.get(
-      '/adoption-listings',
-      query: {
-        'page': '0',
-        'size': '50',
-        'species': species == null ? null : _speciesApi(species),
-        'location': location,
-      },
-    );
+    final dynamic json;
+    try {
+      json = await _client.get(
+        '/adoption-listings',
+        query: {
+          'page': '0',
+          'size': '50',
+          'species': species == null ? null : _speciesApi(species),
+          'location': location,
+        },
+      );
+    } on ApiException catch (e) {
+      // Pas de réseau : annonces enregistrées dans SQLite.
+      if (e.statusCode != 0) rethrow;
+      final saved = await _local.readAll(species: species == null ? null : _speciesApi(species));
+      if (saved.isEmpty) rethrow;
+      return _pets(saved);
+    }
+    if (species == null && (location == null || location.isEmpty)) {
+      final items = json is Map<String, dynamic> ? json['content'] : json;
+      if (items is List) await _local.saveAll(items.whereType<Map<String, dynamic>>().toList());
+    }
     return _pets(json);
   }
+
+  final _local = const AdoptionLocalStore();
 
   Future<AdoptionPet> fetchListing(String id) async {
     final json = await _client.get('/adoption-listings/$id');

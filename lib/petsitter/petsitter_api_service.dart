@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:pet_sitter/core/config/api_constants.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
+import 'package:pet_sitter/petsitter/petsitter_local_store.dart';
 import 'package:pet_sitter/petsitter/petsitter_models.dart';
 import 'package:pet_sitter/petsitter/petsitter_session.dart';
 
@@ -94,18 +96,29 @@ class PetSitterApiService {
     };
 
     final uri = Uri.parse('$_baseUrl/sitters').replace(queryParameters: query);
-    final response = await _client
-        .get(uri, headers: _headers())
-        .timeout(ApiConstants.timeout);
+    final http.Response response;
+    try {
+      response = await _client
+          .get(uri, headers: _headers())
+          .timeout(ApiConstants.timeout);
+    } on Exception catch (e) {
+      // Pas de réseau (délai dépassé, serveur injoignable) : sitters enregistrés dans SQLite.
+      if (e is! TimeoutException && e is! SocketException && e is! http.ClientException) rethrow;
+      final saved = await _local.readAll(search: search, governorate: governorate);
+      if (saved.isEmpty) rethrow;
+      return saved.map(PetSitter.fromJson).toList();
+    }
     final data = _handleResponse(response);
 
     if (data is Map<String, dynamic> && data['content'] is List) {
-      return (data['content'] as List)
-          .map((item) => PetSitter.fromJson(item as Map<String, dynamic>))
-          .toList();
+      final items = (data['content'] as List).whereType<Map<String, dynamic>>().toList();
+      await _local.saveAll(items);
+      return items.map(PetSitter.fromJson).toList();
     }
     return [];
   }
+
+  final _local = const SitterLocalStore();
 
   Future<PetSitter> getSitterById(String id) async {
     final uri = Uri.parse('$_baseUrl/sitters/$id');
