@@ -122,6 +122,14 @@ class StoreFlowTest {
 	}
 
 	@Test
+	@DisplayName("Un administrateur gère la boutique mais ne passe pas de commande")
+	void adminCannotOrder() throws Exception {
+		int option = (int) newProduct(10, 5)[1];
+		order(ADMIN, option, 1).andExpect(status().isForbidden());
+		order(SITTER, option, 1).andExpect(status().isCreated());
+	}
+
+	@Test
 	@DisplayName("Annuler rend le stock, une seule fois ; chacun ne voit que ses commandes")
 	void cancelAndPrivacy() throws Exception {
 		int option = (int) newProduct(10, 1)[1];

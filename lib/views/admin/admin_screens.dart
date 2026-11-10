@@ -59,6 +59,31 @@ class _AdminShellState extends State<AdminShell> {
   }
 }
 
+/// Gestion de la boutique dans l'onglet « Boutique » d'un administrateur : onglets en haut,
+/// pour ne pas ajouter une seconde barre de navigation sous celle de l'application.
+class StoreAdminPanel extends StatelessWidget {
+  const StoreAdminPanel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const DefaultTabController(
+      length: 3,
+      child: Column(
+        children: [
+          TabBar(
+            tabs: [
+              Tab(text: 'Commandes'),
+              Tab(text: 'Produits'),
+              Tab(text: 'Ventes'),
+            ],
+          ),
+          Expanded(child: TabBarView(children: [_OrdersTab(), _ProductsTab(), SalesTab()])),
+        ],
+      ),
+    );
+  }
+}
+
 Widget _errorView(String message, VoidCallback onRetry) => Center(
   child: Padding(
     padding: const EdgeInsets.all(24),

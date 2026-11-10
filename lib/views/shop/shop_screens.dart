@@ -12,6 +12,7 @@ import 'package:pet_sitter/data/repositories/cart_repository.dart';
 import 'package:pet_sitter/core/mvvm/view_model.dart';
 import 'package:pet_sitter/view_models/reviews_view_model.dart';
 import 'package:pet_sitter/view_models/shop_view_model.dart';
+import 'package:pet_sitter/views/admin/admin_screens.dart';
 import 'package:pet_sitter/views/shop/reviews_section.dart';
 import 'package:pet_sitter/core/widgets/product_art.dart';
 
@@ -106,6 +107,34 @@ class _ShopScreenState extends State<ShopScreen> {
   Widget build(BuildContext context) => ListenableBuilder(listenable: vm, builder: (context, _) => _content(context));
 
   Widget _content(BuildContext context) {
+    // Un administrateur gère la boutique : l'onglet lui montre la gestion, pas le catalogue client.
+    if (Deps.of(context).session.user?.isAdmin == true) {
+      return SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Boutique', style: LPText.display(size: 32, w: FontWeight.w700)),
+                        Text('Gestion : commandes, produits et ventes', style: LPText.bodyS.copyWith(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  const Icon(PhosphorIconsRegular.shieldCheck, color: LP.primary),
+                ],
+              ),
+            ),
+            const Expanded(child: StoreAdminPanel()),
+          ],
+        ),
+      );
+    }
     final items = vm.products;
     final myPets = vm.myPets;
     final recommended = vm.recommended;
@@ -131,28 +160,6 @@ class _ShopScreenState extends State<ShopScreen> {
               ],
             ),
           ).from(y: -14, duration: 0.5),
-          // L'administrateur voit la boutique comme un client, avec un accès direct à sa gestion.
-          if (Deps.of(context).session.user?.isAdmin == true)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-                decoration: BoxDecoration(color: LP.mintPale, borderRadius: BorderRadius.circular(LP.r16)),
-                child: Row(
-                  children: [
-                    const Icon(PhosphorIconsRegular.shieldCheck, size: 20, color: LP.primary),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text('Mode administrateur', style: LPText.label.copyWith(color: LP.primaryDark)),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pushNamed(context, R.storeAdmin),
-                      child: const Text('Gérer la boutique'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: TextField(
@@ -505,6 +512,8 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Un administrateur ne commande pas : pas de bouton d'ajout (cartes de la boutique et de l'accueil).
+    if (Deps.of(context).session.user?.isAdmin == true) return const SizedBox.shrink();
     if (product.soldOut) return const Pill(label: 'Épuisé', bg: LP.soft, fg: LP.muted);
     return Tooltip(
       message: 'Ajouter au panier',
@@ -776,11 +785,13 @@ class _ProductScreenState extends State<ProductScreen> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: PawButton(
-                label: vm.canAdd ? 'Ajouter au panier' : 'Épuisé',
-                icon: PhosphorIconsFill.shoppingBag,
-                onPressed: vm.canAdd ? _add : null,
-              ),
+              child: Deps.of(context).session.user?.isAdmin == true
+                  ? Text('Réservé aux clients', style: LPText.label.copyWith(color: LP.muted))
+                  : PawButton(
+                      label: vm.canAdd ? 'Ajouter au panier' : 'Épuisé',
+                      icon: PhosphorIconsFill.shoppingBag,
+                      onPressed: vm.canAdd ? _add : null,
+                    ),
             ),
           ],
         ),
@@ -977,7 +988,9 @@ class _CartScreenState extends State<CartScreen> {
           bottomNavigationBar: cart.lines.isEmpty
               ? null
               : BottomActionBar(
-                  child: PawButton(label: 'Commander · ${_dt(cart.total)}', loading: vm.ordering, onPressed: _order),
+                  child: Deps.of(context).session.user?.isAdmin == true
+                      ? const InfoNote('Un administrateur gère la boutique et ne passe pas de commande.')
+                      : PawButton(label: 'Commander · ${_dt(cart.total)}', loading: vm.ordering, onPressed: _order),
                 ),
         );
       },

@@ -291,7 +291,7 @@ void main() {
     expect(find.text('Croquettes chat stérilisé'), findsOneWidget);
   });
 
-  testWidgets('boutique : l\'administrateur a un accès direct à la gestion, pas le client', (tester) async {
+  testWidgets('boutique : l\'administrateur voit la gestion, le client voit le catalogue', (tester) async {
     final admin = AuthSession.isolated();
     await admin.open(
       token: 'j',
@@ -305,7 +305,10 @@ void main() {
       shop: _EmptyShop(),
       size: const Size(900, 1400),
     );
-    expect(find.text('Gérer la boutique'), findsOneWidget);
+    expect(find.text('Gestion : commandes, produits et ventes'), findsOneWidget);
+    expect(find.widgetWithText(Tab, 'Ventes'), findsOneWidget);
+    expect(find.textContaining('PS-10001'), findsOneWidget);
+    expect(find.byType(CartButton), findsNothing);
 
     final owner = AuthSession.isolated();
     await owner.open(
@@ -319,7 +322,20 @@ void main() {
       shop: _EmptyShop(),
       size: const Size(900, 1400),
     );
-    expect(find.text('Gérer la boutique'), findsNothing);
+    expect(find.text('Gestion : commandes, produits et ventes'), findsNothing);
+    expect(find.byType(CartButton), findsOneWidget);
+  });
+
+  testWidgets('panier : un administrateur ne peut pas commander', (tester) async {
+    final admin = AuthSession.isolated();
+    await admin.open(
+      token: 'j',
+      user: const AppUser(id: 'a', firstName: 'Admin', email: 'e', role: AppRole.admin),
+    );
+    final cart = CartRepository(demo: false)..add(Shop.products.first, Shop.products.first.options.first);
+    await _show(tester, const CartScreen(), cart: cart, session: admin);
+    expect(find.textContaining('ne passe pas de commande'), findsOneWidget);
+    expect(find.textContaining('Commander'), findsNothing);
   });
 
   testWidgets('produit épuisé : ajout impossible', (tester) async {

@@ -268,12 +268,13 @@ class AccountScreen extends StatelessWidget {
               subtitle: vm.petsSummary,
               onTap: () => Navigator.pushNamed(context, R.myPets),
             ),
-            LPListTile(
-              icon: PhosphorIconsRegular.shoppingBag,
-              title: 'Mes commandes',
-              subtitle: 'Boutique : suivi et annulation',
-              onTap: () => Navigator.pushNamed(context, R.myOrders),
-            ),
+            if (Deps.of(context).session.user?.isAdmin != true)
+              LPListTile(
+                icon: PhosphorIconsRegular.shoppingBag,
+                title: 'Mes commandes',
+                subtitle: 'Boutique : suivi et annulation',
+                onTap: () => Navigator.pushNamed(context, R.myOrders),
+              ),
             if (Deps.of(context).session.user?.isAdmin == true)
               LPListTile(
                 icon: PhosphorIconsRegular.storefront,

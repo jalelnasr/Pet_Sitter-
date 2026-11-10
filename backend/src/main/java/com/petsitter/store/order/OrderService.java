@@ -13,6 +13,7 @@ import com.petsitter.common.exception.BadRequestException;
 import com.petsitter.common.exception.BusinessException;
 import com.petsitter.common.exception.ResourceNotFoundException;
 import com.petsitter.common.exception.UnauthenticatedException;
+import com.petsitter.common.exception.UnauthorizedActionException;
 import com.petsitter.store.order.OrderDtos.CreateOrderRequest;
 import com.petsitter.store.order.OrderDtos.ItemRequest;
 import com.petsitter.store.order.OrderDtos.OrderResponse;
@@ -22,6 +23,7 @@ import com.petsitter.store.product.ProductDtos.PageResponse;
 import com.petsitter.store.product.ProductOption;
 import com.petsitter.store.product.ProductOptionRepository;
 import com.petsitter.user.entity.UserEntity;
+import com.petsitter.user.enums.UserRole;
 import com.petsitter.user.repository.UserRepository;
 
 @Service
@@ -53,6 +55,9 @@ public class OrderService {
 		}
 		UserEntity user = users.findById(userId)
 			.orElseThrow(() -> new UnauthenticatedException("AUTH_REQUIRED", "Compte introuvable."));
+		if (user.getRole() == UserRole.ADMIN) {
+			throw new UnauthorizedActionException("Un administrateur gère la boutique mais ne passe pas de commande.");
+		}
 
 		// Même format envoyé deux fois : une seule ligne. Tri par id : verrous toujours pris dans le même ordre.
 		Map<Long, Integer> quantities = new TreeMap<>();
