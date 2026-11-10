@@ -40,6 +40,13 @@ class AccountViewModel extends ViewModel {
 
   bool get isPetsitter => user?.role == AppRole.petsitter;
 
+  /// Rôle affiché sous le nom (choisi à l'inscription).
+  String get roleLabel => switch (user?.role) {
+    AppRole.petsitter => 'Pet sitter',
+    AppRole.admin => 'Administrateur',
+    _ => 'Propriétaire',
+  };
+
   List<Pet> get pets => _pets.myPets();
   String get petsSummary => pets.isEmpty ? 'Aucun animal pour le moment' : pets.map((p) => p.name).join(', ');
 

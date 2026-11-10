@@ -25,6 +25,15 @@ class PetFormViewModel extends ViewModel {
   String? _sex = 'Mâle';
   String? get sex => _sex;
 
+  /// Photo choisie dans la galerie (data:image/…;base64,…), vide sans photo.
+  String _photo = '';
+  String get photo => _photo;
+
+  void setPhoto(String dataUri) {
+    _photo = dataUri;
+    notify();
+  }
+
   // Champs libres : âge, soins, vétérinaire.
   String age = '';
   String care = '';
@@ -121,6 +130,7 @@ class PetFormViewModel extends ViewModel {
     return {
       'name': name.trim(),
       'species': _species.name,
+      'photo': _photo,
       'sex': asksSex && _sex != 'Je ne sais pas' ? _sex : null,
       'age': ageValue.isEmpty ? '' : '$ageValue $_ageUnit',
       'breed': breed,

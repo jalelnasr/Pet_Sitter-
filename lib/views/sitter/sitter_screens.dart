@@ -718,7 +718,12 @@ class _SitterAccount extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(name, style: LPText.h2),
-                      Text(city == null || city.isEmpty ? 'Pet sitter' : 'Pet sitter · $city', style: LPText.bodyS),
+                      const SizedBox(height: 6),
+                      RolePill(role: AppRole.petsitter, label: vm.roleLabel),
+                      if (city != null && city.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(city, style: LPText.bodyS),
+                      ],
                       if (user != null)
                         TextButton(
                           style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
@@ -777,17 +782,6 @@ class _SitterAccount extends StatelessWidget {
               subtitle: 'Prochain versement : 135 DT le 27 oct.',
             ),
           ],
-          LPListTile(
-            icon: PhosphorIconsRegular.arrowsLeftRight,
-            title: 'Passer en mode propriétaire',
-            subtitle: 'Faire garder mes propres animaux',
-            onTap: vm.switching
-                ? null
-                : () async {
-                    if (!await vm.switchRole(AppRole.owner) || !context.mounted) return;
-                    Navigator.pushNamedAndRemoveUntil(context, R.owner, (r) => r.settings.name == R.catalog);
-                  },
-          ),
           LPListTile(
             icon: PhosphorIconsRegular.gearSix,
             title: 'Paramètres',

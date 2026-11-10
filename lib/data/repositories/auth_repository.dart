@@ -8,6 +8,9 @@
 /// Après une connexion réussie, le dépôt ouvre la [AuthSession] partagée.
 library;
 
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:pet_sitter/adoption/api/api_client.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/models/user.dart';
@@ -59,6 +62,12 @@ abstract class AuthRepository {
   Future<void> changePassword({required String currentPassword, required String newPassword});
 
   Future<AppUser> changeRole(AppRole role);
+
+  /// Photo de profil choisie dans la galerie (JPEG, PNG ou WebP).
+  Future<AppUser> changePhoto(Uint8List bytes, String filename);
+
+  /// Retire la photo de profil : les initiales s'affichent de nouveau.
+  Future<AppUser> removePhoto();
 
   Future<void> logOut();
 }
@@ -196,6 +205,33 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AppUser> changePhoto(Uint8List bytes, String filename) async {
+    await _wait();
+    final user = _me.copyWith(photoUrl: 'data:image/jpeg;base64,${base64Encode(bytes)}');
+    await _session.updateUser(user);
+    return user;
+  }
+
+  @override
+  Future<AppUser> removePhoto() async {
+    await _wait();
+    final me = _me;
+    final user = AppUser(
+      id: me.id,
+      firstName: me.firstName,
+      lastName: me.lastName,
+      email: me.email,
+      role: me.role,
+      phone: me.phone,
+      city: me.city,
+      bio: me.bio,
+      createdAt: me.createdAt,
+    );
+    await _session.updateUser(user);
+    return user;
+  }
+
+  @override
   Future<void> logOut() => _session.close();
 }
 
@@ -326,6 +362,22 @@ class ApiAuthRepository implements AuthRepository {
   Future<AppUser> changeRole(AppRole role) => _call(() async {
     final json = await _api.put('/auth/me/role', {'role': role.apiValue});
     return _openFrom(json);
+  });
+
+  @override
+  Future<AppUser> changePhoto(Uint8List bytes, String filename) => _call(() async {
+    final json = await _api.upload('/auth/me/photo', bytes, filename);
+    final user = AppUser.fromJson(json as Map<String, dynamic>);
+    await _session.updateUser(user);
+    return user;
+  });
+
+  @override
+  Future<AppUser> removePhoto() => _call(() async {
+    final json = await _api.delete('/auth/me/photo');
+    final user = AppUser.fromJson(json as Map<String, dynamic>);
+    await _session.updateUser(user);
+    return user;
   });
 
   @override

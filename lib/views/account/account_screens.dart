@@ -199,8 +199,10 @@ class AccountScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(vm.fullName, style: LPText.h2),
+                        const SizedBox(height: 6),
+                        RolePill(role: vm.user?.role ?? AppRole.owner, label: vm.roleLabel),
+                        const SizedBox(height: 6),
                         Text(vm.subtitle, style: LPText.bodyS),
-                        const SizedBox(height: 4),
                         TextButton(
                           style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
                           onPressed: () => Navigator.pushNamed(context, R.editProfile),
@@ -208,49 +210,6 @@ class AccountScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            // Changement de rôle — le choix initial reste modifiable
-            Container(
-              margin: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-              decoration: BoxDecoration(color: LP.accentSoft, borderRadius: BorderRadius.circular(LP.r20)),
-              child: Row(
-                children: [
-                  const Icon(PhosphorIconsRegular.handHeart, color: LP.accentInk, size: 26),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          vm.isPetsitter ? 'Mode pet sitter' : 'Mode propriétaire',
-                          style: LPText.label.copyWith(color: LP.accentInk),
-                        ),
-                        Text(
-                          vm.isPetsitter
-                              ? 'Gérez vos demandes et vos disponibilités.'
-                              : 'Vous aimez les animaux ? Proposez vos services.',
-                          style: LPText.body(size: 13.5, color: LP.ink),
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(foregroundColor: LP.primaryDark),
-                    onPressed: vm.switching
-                        ? null
-                        : () async {
-                            if (!await vm.switchRole(AppRole.petsitter) || !context.mounted) return;
-                            Navigator.pushNamedAndRemoveUntil(
-                              context,
-                              R.sitterSpace,
-                              (r) => r.settings.name == R.catalog,
-                            );
-                          },
-                    child: Text(vm.isPetsitter ? 'Mon espace' : 'Devenir sitter'),
                   ),
                 ],
               ),
@@ -576,14 +535,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Changer mon mot de passe',
             onTap: () => Navigator.pushNamed(context, R.changePassword),
           ),
-          LPListTile(
-            icon: PhosphorIconsRegular.arrowsLeftRight,
-            title: 'Mon usage de Pet Sitter',
-            subtitle: Deps.of(context).session.user?.role == AppRole.petsitter
-                ? 'Je propose mes services de pet sitter'
-                : 'Je cherche une garde',
-            onTap: () => Navigator.pushNamed(context, R.role),
-          ),
           _g('Préférences'),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
@@ -631,4 +582,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     padding: const EdgeInsets.fromLTRB(20, 24, 20, 4),
     child: Text(t.toUpperCase(), style: LPText.overline),
   );
+}
+
+/// Rôle du compte, affiché sous le nom dans le profil.
+class RolePill extends StatelessWidget {
+  const RolePill({super.key, required this.role, required this.label});
+  final AppRole role;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => switch (role) {
+    AppRole.petsitter => Pill(label: label, icon: PhosphorIconsRegular.handHeart, bg: LP.accentSoft, fg: LP.accentInk),
+    AppRole.admin => Pill(label: label, icon: PhosphorIconsRegular.shieldCheck, bg: LP.night, fg: LP.white),
+    AppRole.owner => Pill(label: label, icon: PhosphorIconsRegular.pawPrint),
+  };
 }

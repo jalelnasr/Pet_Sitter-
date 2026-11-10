@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_sitter/core/session/auth_session.dart';
 
 import 'package:pet_sitter/core/config/api_constants.dart';
 export 'package:pet_sitter/core/utils/format.dart';
@@ -31,6 +32,21 @@ class LPImage extends StatelessWidget {
     // Pas encore de photo (animal ajouté sans photo) : patte, sans requête réseau.
     if (url.trim().isEmpty) {
       return ClipRRect(borderRadius: BorderRadius.circular(radius), child: placeholder());
+    }
+    // Photo choisie dans la galerie du téléphone (data:image/…;base64,…).
+    if (url.startsWith('data:image/')) {
+      final bytes = UriData.parse(url).contentAsBytes();
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.memory(
+          bytes,
+          width: width,
+          height: height,
+          fit: fit,
+          gaplessPlayback: true,
+          errorBuilder: (context, error, stackTrace) => placeholder(true),
+        ),
+      );
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
@@ -73,10 +89,14 @@ class LPAvatar extends StatelessWidget {
 /// Badge qui signale clairement un exemple fictif.
 class FictifBadge extends StatelessWidget {
   const FictifBadge({super.key, this.onDark = false});
+
+  /// Vrai quand un compte est connecté : les données viennent du backend, rien n'est fictif.
+  static bool get _realData => AuthSession.instance.isAuthenticated;
   final bool onDark;
 
   @override
   Widget build(BuildContext context) {
+    if (_realData) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(color: onDark ? LP.bg : LP.accentSoft, borderRadius: BorderRadius.circular(99)),

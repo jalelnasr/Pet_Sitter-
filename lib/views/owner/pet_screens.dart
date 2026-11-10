@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:pet_sitter/core/theme/ph_icons.dart';
 
 import 'package:pet_sitter/models/models.dart';
@@ -32,6 +35,24 @@ class _AddPetScreenState extends State<AddPetScreen> {
     vm.dispose();
     _name.dispose();
     super.dispose();
+  }
+
+  /// Galerie du téléphone → photo réduite (900 px, qualité 80) gardée avec la fiche.
+  Future<void> _pickPhoto() async {
+    try {
+      final file = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 900, imageQuality: 80);
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      final name = file.name.toLowerCase();
+      final mime = file.mimeType ??
+          (name.endsWith('.png') ? 'image/png' : name.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
+      vm.setPhoto('data:$mime;base64,${base64Encode(bytes)}');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'ouvrir la galerie. Vérifiez l\'accès aux photos.')),
+      );
+    }
   }
 
   Future<void> _save() async {
@@ -81,15 +102,24 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 const SizedBox(height: 22),
                 Row(
                   children: [
-                    Container(
-                      width: 88,
-                      height: 88,
-                      decoration: BoxDecoration(
-                        color: LP.soft,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: LP.softDeep, width: 1.5),
+                    Semantics(
+                      button: true,
+                      label: vm.photo.isEmpty ? 'Ajouter une photo' : 'Changer la photo',
+                      child: GestureDetector(
+                        onTap: _pickPhoto,
+                        child: Container(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
+                            color: LP.soft,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: LP.softDeep, width: 1.5),
+                          ),
+                          child: vm.photo.isEmpty
+                              ? Icon(vm.species.icon, size: 36, color: LP.primary)
+                              : LPImage(vm.photo, width: 88, height: 88, radius: 88),
+                        ),
                       ),
-                      child: Icon(vm.species.icon, size: 36, color: LP.primary),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -98,9 +128,9 @@ class _AddPetScreenState extends State<AddPetScreen> {
                         children: [
                           OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
-                            onPressed: () {},
+                            onPressed: _pickPhoto,
                             icon: const Icon(PhosphorIconsRegular.camera, size: 19),
-                            label: const Text('Ajouter une photo'),
+                            label: Text(vm.photo.isEmpty ? 'Ajouter une photo' : 'Changer la photo'),
                           ),
                           const SizedBox(height: 6),
                           Text(

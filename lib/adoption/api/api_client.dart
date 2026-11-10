@@ -8,6 +8,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -99,6 +100,19 @@ class ApiClient {
 
   Future<dynamic> delete(String path) =>
       _send(() => _client.delete(_uri(path), headers: _headers()));
+
+  /// Envoi d'un fichier en multipart (champ « file »), avec le jeton de session.
+  Future<dynamic> upload(String path, Uint8List bytes, String filename) => _send(() async {
+    final request = http.MultipartRequest('POST', _uri(path))
+      ..headers.addAll({
+        'Accept': 'application/json',
+        'X-User-Id': DemoSessionProvider.instance.currentUser.id,
+        'X-Demo-User-Id': DemoSessionProvider.instance.currentUser.id,
+        ...AuthSession.instance.authHeaders,
+      })
+      ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    return http.Response.fromStream(await _client.send(request));
+  });
 
   Future<dynamic> _send(Future<http.Response> Function() request) async {
     try {

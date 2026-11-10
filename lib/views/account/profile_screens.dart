@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:pet_sitter/app/dependencies.dart';
 import 'package:pet_sitter/app/routes.dart';
@@ -52,6 +53,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final _city = TextEditingController(text: vm.user?.city ?? '');
   late final _bio = TextEditingController(text: vm.user?.bio ?? '');
 
+  /// Galerie du téléphone → photo réduite (800 px), envoyée tout de suite au serveur.
+  Future<void> _pickPhoto() async {
+    try {
+      final file = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 800, imageQuality: 85);
+      if (file == null) return;
+      final ok = await vm.changePhoto(await file.readAsBytes(), file.name);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ok ? 'Photo de profil enregistrée.' : (vm.error ?? 'Photo non enregistrée.'))),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'ouvrir la galerie. Vérifiez l\'accès aux photos.')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     vm.dispose();
@@ -90,8 +109,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
-            Center(child: MemberAvatar(photo: user.photoUrl ?? '', name: user.fullName, size: 88)),
-            const SizedBox(height: 8),
+            Center(
+              child: Semantics(
+                button: true,
+                label: vm.photo.isEmpty ? 'Ajouter une photo de profil' : 'Changer la photo de profil',
+                child: GestureDetector(
+                  onTap: vm.photoBusy ? null : _pickPhoto,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      MemberAvatar(photo: vm.photo, name: user.fullName, size: 88),
+                      if (vm.photoBusy)
+                        const SizedBox(width: 88, height: 88, child: CircularProgressIndicator(strokeWidth: 3)),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: LP.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: LP.white, width: 2),
+                          ),
+                          child: const Icon(PhosphorIconsRegular.camera, size: 16, color: LP.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: vm.photoBusy ? null : _pickPhoto,
+                  child: Text(vm.photo.isEmpty ? 'Ajouter une photo' : 'Changer la photo'),
+                ),
+                if (vm.photo.isNotEmpty)
+                  TextButton(
+                    onPressed: vm.photoBusy ? null : vm.removePhoto,
+                    style: TextButton.styleFrom(foregroundColor: LP.muted),
+                    child: const Text('Retirer'),
+                  ),
+              ],
+            ),
             Center(child: Text(user.email, style: LPText.bodyS)),
             const SizedBox(height: 22),
             if (vm.error != null) ...[

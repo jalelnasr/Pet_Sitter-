@@ -19,6 +19,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -87,6 +91,18 @@ public class AuthController {
     @Operation(summary = "Modifier son profil")
     public UserResponse updateMe(HttpServletRequest http, @Valid @RequestBody UpdateProfileRequest request) {
         return userService.updateProfile(currentUser.require(http), request);
+    }
+
+    @PostMapping(value = "/me/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Changer sa photo de profil (JPEG, PNG ou WebP, 5 Mo maximum)")
+    public UserResponse updatePhoto(HttpServletRequest http, @RequestParam("file") MultipartFile file) {
+        return userService.updatePhoto(currentUser.require(http), file);
+    }
+
+    @DeleteMapping("/me/photo")
+    @Operation(summary = "Retirer sa photo de profil")
+    public UserResponse removePhoto(HttpServletRequest http) {
+        return userService.removePhoto(currentUser.require(http));
     }
 
     @PutMapping("/me/password")

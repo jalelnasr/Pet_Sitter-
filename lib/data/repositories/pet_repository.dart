@@ -88,7 +88,7 @@ Pet petFromAnswers(String id, Map<String, Object?> a) {
     species: Species.values.firstWhere((s) => s.name == a['species'], orElse: () => Species.autre),
     breed: text('breed'),
     age: text('age'),
-    photo: '',
+    photo: text('photo'),
     sex: text('sex').isEmpty ? '—' : text('sex'),
     food: Map<String, String>.from(a['food'] as Map? ?? const {}),
     habits: Map<String, String>.from(a['habits'] as Map? ?? const {}),

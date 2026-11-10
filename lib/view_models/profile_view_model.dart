@@ -1,12 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:pet_sitter/core/mvvm/view_model.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/data/repositories/auth_repository.dart';
 import 'package:pet_sitter/models/user.dart';
 import 'package:pet_sitter/view_models/auth_view_model.dart';
 
-/// Modification du profil (prénom, nom, téléphone, ville, présentation).
+/// Modification du profil (photo, prénom, nom, téléphone, ville, présentation).
 class EditProfileViewModel extends ViewModel {
-  EditProfileViewModel(this._auth, AuthSession session) : user = session.user;
+  EditProfileViewModel(this._auth, AuthSession session) : user = session.user, _photo = session.user?.photoUrl ?? '';
 
   final AuthRepository _auth;
 
@@ -23,6 +25,35 @@ class EditProfileViewModel extends ViewModel {
 
   Map<String, String> _fieldErrors = const {};
   String? fieldError(String field) => _fieldErrors[field];
+
+  // ———— Photo de profil (enregistrée tout de suite sur le compte)
+
+  String _photo;
+  String get photo => _photo;
+
+  bool _photoBusy = false;
+  bool get photoBusy => _photoBusy;
+
+  Future<bool> changePhoto(Uint8List bytes, String filename) =>
+      _photoAction(() => _auth.changePhoto(bytes, filename));
+
+  Future<bool> removePhoto() => _photoAction(_auth.removePhoto);
+
+  Future<bool> _photoAction(Future<AppUser> Function() action) async {
+    _photoBusy = true;
+    _error = null;
+    notify();
+    try {
+      _photo = (await action()).photoUrl ?? '';
+      return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      return false;
+    } finally {
+      _photoBusy = false;
+      notify();
+    }
+  }
 
   Future<bool> save({
     required String firstName,

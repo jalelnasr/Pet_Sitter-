@@ -1,7 +1,9 @@
 // Animaux du propriétaire : aucun animal inventé dans l'application réelle, la fiche
 // remplie dans « Ajouter un animal » apparaît pour le compte qui l'a ajoutée.
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
+import 'package:pet_sitter/core/widgets/common.dart';
 import 'package:pet_sitter/data/repositories/cart_repository.dart';
 import 'package:pet_sitter/data/repositories/pet_repository.dart';
 import 'package:pet_sitter/data/repositories/shop_repository.dart';
@@ -9,7 +11,11 @@ import 'package:pet_sitter/models/models.dart';
 import 'package:pet_sitter/view_models/account_view_model.dart';
 import 'package:pet_sitter/view_models/home_view_model.dart';
 import 'package:pet_sitter/view_models/pet_form_view_model.dart';
+import 'package:pet_sitter/view_models/shop_view_model.dart';
 import 'package:pet_sitter/data/repositories/sitter_repository.dart';
+
+/// Image PNG de 1 × 1 pixel.
+const _pixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
 const _leila = AppUser(id: 'leila', firstName: 'Leïla', email: 'l@exemple.tn', role: AppRole.owner);
 const _sami = AppUser(id: 'sami', firstName: 'Sami', email: 's@exemple.tn', role: AppRole.owner);
@@ -63,6 +69,36 @@ void main() {
     form.dispose();
   });
 
+  test('la photo choisie dans la galerie est gardée avec la fiche', () async {
+    final form = PetFormViewModel(pets);
+    form.setPhoto('data:image/png;base64,$_pixel');
+    await form.save('Mimi');
+    expect(pets.myPets().single.photo, startsWith('data:image/png;base64,'));
+    form.dispose();
+  });
+
+  testWidgets('une photo de la galerie s\'affiche sans passer par le réseau', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LPImage('data:image/png;base64,$_pixel', width: 40, height: 40)));
+    expect(find.byType(Image), findsOneWidget);
+    expect((tester.widget<Image>(find.byType(Image)).image), isA<MemoryImage>());
+  });
+
+  test('le rôle du compte s\'affiche sous le nom', () async {
+    final account = AccountViewModel(pets, MockSitterRepository(), session: session);
+    expect(account.roleLabel, 'Propriétaire');
+    await session.open(
+      token: 't2',
+      user: const AppUser(id: 'r', firstName: 'Rayen', email: 'r@exemple.tn', role: AppRole.petsitter),
+    );
+    expect(account.roleLabel, 'Pet sitter');
+    await session.open(
+      token: 't3',
+      user: const AppUser(id: 'd', firstName: 'Dali', email: 'd@exemple.tn', role: AppRole.admin),
+    );
+    expect(account.roleLabel, 'Administrateur');
+    account.dispose();
+  });
+
   test('sans nom, rien n\'est enregistré', () async {
     final form = PetFormViewModel(pets);
     expect(await form.save('   '), isFalse);
@@ -100,6 +136,15 @@ void main() {
     expect(home.pets.map((p) => p.name), ['Mimi', 'Rex']);
     expect(home.shopSubtitle, 'Pour Mimi et Rex · livraison offerte dès 80 DT');
     home.dispose();
+  });
+
+  test('boutique : « Pour … » suit les animaux du compte', () async {
+    final shop = ShopViewModel(shop: MockShopRepository(), pets: pets, cart: CartRepository());
+    expect(shop.myPets, isEmpty); // pas d'animal : pas de section « Pour … »
+    await PetFormViewModel(pets, initial: Species.chien).save('Rex');
+    expect(shop.myPets.map((p) => p.name), ['Rex']);
+    expect(shop.recommended, isNotEmpty);
+    shop.dispose();
   });
 
   test('salutation selon l\'heure', () {

@@ -715,7 +715,7 @@ class _RoleChoiceScreenState extends State<RoleChoiceScreen> {
                   const Icon(PhosphorIconsRegular.arrowCounterClockwise, size: 18, color: LP.muted),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text('Ce choix reste modifiable à tout moment depuis votre profil.', style: LPText.bodyS),
+                    child: Text('Votre rôle s\'affiche sur votre profil.', style: LPText.bodyS),
                   ),
                 ],
               ),
