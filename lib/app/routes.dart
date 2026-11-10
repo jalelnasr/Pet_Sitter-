@@ -10,7 +10,6 @@ import 'package:pet_sitter/views/account/account_screens.dart';
 import 'package:pet_sitter/views/account/profile_screens.dart';
 import 'package:pet_sitter/views/auth/auth_screens.dart';
 import 'package:pet_sitter/views/booking/booking_screens.dart';
-import 'package:pet_sitter/views/catalog/catalog_screen.dart';
 import 'package:pet_sitter/views/catalog/style_guide_screen.dart';
 import 'package:pet_sitter/views/messages/messages_screens.dart';
 import 'package:pet_sitter/views/onboarding/onboarding_screen.dart';
@@ -119,7 +118,7 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
   if (sitterRoute != null) return sitterRoute;
   final a = settings.arguments;
   final Widget page = switch (settings.name) {
-    R.catalog => const CatalogScreen(),
+    R.catalog => const SplashScreen(),
     R.splash => const SplashScreen(),
     R.splashPreview => const SplashScreen(autoNext: false),
     R.onboarding => const OnboardingScreen(),
@@ -202,7 +201,7 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     R.sitterCalendar => const AvailabilityScreen(),
     R.sitterMessages => const SitterShell(initialTab: SitterTab.messages),
     R.sitterAccount => const SitterShell(initialTab: SitterTab.account),
-    _ => const CatalogScreen(),
+    _ => const SplashScreen(),
   };
   return MaterialPageRoute(builder: (_) => page, settings: settings);
 }

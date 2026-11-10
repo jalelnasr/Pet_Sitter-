@@ -8,7 +8,6 @@ import 'package:pet_sitter/petsitter/petsitter_session.dart';
 import 'package:pet_sitter/petsitter/petsitter_view_models.dart';
 import 'package:pet_sitter/petsitter/petsitter_widgets.dart';
 import 'package:pet_sitter/core/theme/ph_icons.dart';
-import 'package:pet_sitter/views/catalog/catalog_screen.dart';
 import 'package:pet_sitter/views/owner/owner_shell.dart';
 import 'package:pet_sitter/views/messages/messages_screens.dart';
 import 'package:pet_sitter/petsitter/petsitter_ai.dart';
@@ -30,14 +29,6 @@ class SitterListScreen extends StatelessWidget {
           appBar: AppBar(
             backgroundColor: LP.white,
             elevation: 0,
-            leading: IconButton(
-              icon: const Icon(PhosphorIconsRegular.squaresFour, color: LP.ink),
-              tooltip: 'Tous les modules (Sommaire)',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CatalogScreen()),
-              ),
-            ),
             title: const Text('Trouver un Pet Sitter'),
             actions: const [
               PetSitterUserSwitcher(),
@@ -135,15 +126,6 @@ class SitterListScreen extends StatelessWidget {
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const MatchmakingScreen()),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ActionChip(
-                        avatar: const Icon(PhosphorIconsRegular.squaresFour, size: 14),
-                        label: const Text('Tous les modules'),
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const CatalogScreen()),
                         ),
                       ),
                       const SizedBox(width: 8),

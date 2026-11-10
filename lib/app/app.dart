@@ -7,7 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:pet_sitter/app/routes.dart';
 import 'package:pet_sitter/core/session/auth_session.dart';
 import 'package:pet_sitter/core/theme/app_theme.dart';
-import 'package:pet_sitter/views/catalog/catalog_screen.dart';
+import 'package:pet_sitter/views/onboarding/splash_screen.dart';
 
 class PetSitterApp extends StatefulWidget {
   const PetSitterApp({super.key, this.session});
@@ -61,9 +61,7 @@ class _PetSitterAppState extends State<PetSitterApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       // Démarrage : splash puis guide (ou accueil si une session est enregistrée).
-      // Le sommaire des maquettes reste dessous (retour arrière).
-      home: const CatalogScreen(),
-      initialRoute: R.splash,
+      home: const SplashScreen(),
       onGenerateRoute: onGenerateRoute,
       // Sur grand écran (web), l'app est présentée dans un cadre de téléphone.
       builder: (context, child) {
