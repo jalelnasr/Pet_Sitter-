@@ -331,17 +331,6 @@ void _openAdmin(BuildContext context, int tab) {
   Navigator.of(context).push(MaterialPageRoute(builder: (_) => AdminShell(initialTab: tab)));
 }
 
-/// Boutique ouverte hors de l'espace propriétaire (ex. : depuis l'espace pet sitter), avec retour.
-class ShopPage extends StatelessWidget {
-  const ShopPage({super.key});
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(leading: const BackButton()),
-    body: const ShopScreen(),
-  );
-}
-
 /// Action de la boutique, même style que les pastilles des autres modules.
 class _StorePill extends StatelessWidget {
   const _StorePill({required this.label, required this.icon, required this.onTap});

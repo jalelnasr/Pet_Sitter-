@@ -50,7 +50,6 @@ class R {
   static const orderDone = '/order-done';
   static const myOrders = '/my-orders';
   static const storeAdmin = '/store-admin';
-  static const shopPage = '/shop-page';
   static const bookings = '/bookings';
   static const messages = '/messages';
   static const account = '/account';
@@ -146,7 +145,6 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     R.orderDone => a is Order ? OrderDoneScreen(order: a) : const OrderDoneScreen(),
     R.myOrders => const MyOrdersScreen(),
     R.storeAdmin => const AdminShell(),
-    R.shopPage => const ShopPage(),
     R.bookings => const OwnerShell(initialTab: OwnerTab.bookings),
     R.messages => const OwnerShell(initialTab: OwnerTab.messages),
     R.account => const OwnerShell(initialTab: OwnerTab.account),

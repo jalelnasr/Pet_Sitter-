@@ -24,6 +24,7 @@ import 'package:pet_sitter/models/models.dart';
 import 'package:pet_sitter/views/admin/admin_screens.dart';
 import 'package:pet_sitter/views/shop/orders_screens.dart';
 import 'package:pet_sitter/views/shop/shop_screens.dart';
+import 'package:pet_sitter/views/sitter/sitter_screens.dart';
 
 Order _order(OrderStatus status) => Order(
   id: 1,
@@ -337,6 +338,25 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
     expect(find.text('Mes commandes'), findsOneWidget);
     expect(find.text('Ventes'), findsNothing);
+    expect(find.byType(CartButton), findsOneWidget);
+  });
+
+  testWidgets('pet sitter : la boutique est un onglet de sa barre de navigation', (tester) async {
+    final sitter = AuthSession.isolated();
+    await sitter.open(
+      token: 'j',
+      user: const AppUser(id: 's', firstName: 'Sami', email: 'e', role: AppRole.petsitter),
+    );
+    await _show(
+      tester,
+      const SitterShell(initialTab: SitterTab.shop),
+      session: sitter,
+      shop: _EmptyShop(),
+      size: const Size(900, 1400),
+    );
+    expect(find.byType(ShopScreen), findsOneWidget);
+    expect(find.text('Boutique'), findsWidgets);
+    expect(find.text('Mes commandes'), findsOneWidget);
     expect(find.byType(CartButton), findsOneWidget);
   });
 

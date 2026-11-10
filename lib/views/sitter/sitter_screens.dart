@@ -19,6 +19,7 @@ import 'package:pet_sitter/adoption/adoption_screens.dart';
 import 'package:pet_sitter/events/event_screens.dart';
 import 'package:pet_sitter/view_models/account_view_model.dart';
 import 'package:pet_sitter/views/account/account_screens.dart';
+import 'package:pet_sitter/views/shop/shop_screens.dart';
 
 // ————————————————————————————————————————————— SHELL SITTER
 
@@ -30,7 +31,8 @@ class SitterTab {
   static const events = 2;
   static const adoption = 3;
   static const messages = 4;
-  static const account = 5;
+  static const shop = 5;
+  static const account = 6;
 }
 
 /// Navigation pet sitter : Accueil, Mes gardes (module Garde), Événements, Adoption, Messages, Profil.
@@ -55,6 +57,7 @@ class _SitterShellState extends State<SitterShell> {
     NavItem(PhosphorIconsRegular.calendarBlank, PhosphorIconsFill.calendarBlank, 'Événements'),
     NavItem(PhosphorIconsRegular.pawPrint, PhosphorIconsFill.pawPrint, 'Adoption'),
     NavItem(PhosphorIconsRegular.chatCircleDots, PhosphorIconsFill.chatCircleDots, 'Messages', badge: true),
+    NavItem(PhosphorIconsRegular.storefront, PhosphorIconsFill.storefront, 'Boutique'),
     NavItem(PhosphorIconsRegular.userCircle, PhosphorIconsFill.userCircle, 'Profil'),
   ];
 
@@ -64,6 +67,7 @@ class _SitterShellState extends State<SitterShell> {
     SitterTab.events => const EventsListScreen(),
     SitterTab.adoption => const AdoptionListScreen(),
     SitterTab.messages => const MessagesListScreen(asSitter: true),
+    SitterTab.shop => const ShopScreen(),
     _ => const _SitterAccount(),
   };
 
@@ -752,12 +756,6 @@ class _SitterAccount extends StatelessWidget {
               title: 'Mon profil public',
               onTap: () => Navigator.pushNamed(context, R.sitter, arguments: demo),
             ),
-          LPListTile(
-            icon: PhosphorIconsRegular.storefront,
-            title: 'Boutique',
-            subtitle: 'Nourriture et accessoires',
-            onTap: () => Navigator.pushNamed(context, R.shopPage),
-          ),
           LPListTile(
             icon: PhosphorIconsRegular.shoppingBag,
             title: 'Mes commandes',
