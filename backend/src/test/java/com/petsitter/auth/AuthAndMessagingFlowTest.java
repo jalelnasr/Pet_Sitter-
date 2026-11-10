@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * mot de passe oublié, profil et messagerie entre deux comptes.
  */
 @SpringBootTest(properties = {
+        "petsitter.demo-data=true", // comptes de démonstration utilisés par le test
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
         "spring.datasource.url=jdbc:h2:mem:petsitter-auth;DB_CLOSE_DELAY=-1;MODE=MySQL",

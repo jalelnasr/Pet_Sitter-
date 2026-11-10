@@ -31,6 +31,7 @@ import com.jayway.jsonpath.JsonPath;
  * l'administrateur, avis, photos et résumé des ventes. Les comptes de démonstration servent d'identité.
  */
 @SpringBootTest(properties = {
+		"petsitter.demo-data=true", // comptes de démonstration utilisés par le test
 		"spring.jpa.hibernate.ddl-auto=create-drop",
 		"spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
 		"spring.datasource.url=jdbc:h2:mem:petsitter-store;DB_CLOSE_DELAY=-1;MODE=MySQL",

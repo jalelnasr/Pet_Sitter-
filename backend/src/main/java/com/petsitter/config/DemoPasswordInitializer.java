@@ -10,6 +10,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.List;
 
@@ -22,6 +23,8 @@ import java.util.List;
  * passe sont concernés ; un mot de passe déjà choisi n'est jamais écrasé.
  * Désactivé si {@code DEMO_PASSWORD} est vide.</p>
  */
+// Données de démonstration : seulement si petsitter.demo-data=true (désactivé par défaut).
+@ConditionalOnProperty(name = "petsitter.demo-data", havingValue = "true")
 @Component
 public class DemoPasswordInitializer {
 

@@ -16,11 +16,14 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Optional;
 
+// Données de démonstration : seulement si petsitter.demo-data=true (désactivé par défaut).
+@ConditionalOnProperty(name = "petsitter.demo-data", havingValue = "true")
 @Configuration
 public class EventDataInitializer {
 
