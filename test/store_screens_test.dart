@@ -109,13 +109,29 @@ class _FakeReviews implements ReviewRepository {
   Future<void> delete(int reviewId) async {}
 }
 
-Widget _app(Widget home, {CartRepository? cart, ReviewRepository? reviews, AuthSession? session}) => Deps(
+/// Catalogue vide : pour tester ce qui entoure la grille sans dépendre des cartes produits.
+class _EmptyShop implements ShopRepository {
+  @override
+  Future<void> load() async {}
+  @override
+  List<Product> products() => const [];
+  @override
+  List<Product> recommendedFor(Iterable<Species> species) => const [];
+}
+
+Widget _app(
+  Widget home, {
+  CartRepository? cart,
+  ReviewRepository? reviews,
+  AuthSession? session,
+  ShopRepository? shop,
+}) => Deps(
   auth: MockAuthRepository(),
   sitters: MockSitterRepository(),
   pets: MockPetRepository(),
   bookings: MockBookingRepository(),
   messages: MockMessageRepository(),
-  shop: MockShopRepository(),
+  shop: shop ?? MockShopRepository(),
   cart: cart ?? CartRepository(demo: false),
   sitterSpace: MockSitterSpaceRepository(),
   session: session ?? AuthSession.isolated(),
@@ -131,11 +147,13 @@ Future<void> _show(
   CartRepository? cart,
   ReviewRepository? reviews,
   AuthSession? session,
+  ShopRepository? shop,
+  Size size = const Size(390, 844),
 }) async {
-  tester.view.physicalSize = const Size(390, 844);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(_app(home, cart: cart, reviews: reviews, session: session));
+  await tester.pumpWidget(_app(home, cart: cart, reviews: reviews, session: session, shop: shop));
   await tester.pump(const Duration(seconds: 2));
   await tester.pump(const Duration(seconds: 2));
 }
@@ -271,6 +289,37 @@ void main() {
     expect(find.text('Bonne semaine, portée par les croquettes.'), findsOneWidget);
     expect(find.textContaining('Rédigé par une IA'), findsOneWidget);
     expect(find.text('Croquettes chat stérilisé'), findsOneWidget);
+  });
+
+  testWidgets('boutique : l\'administrateur a un accès direct à la gestion, pas le client', (tester) async {
+    final admin = AuthSession.isolated();
+    await admin.open(
+      token: 'j',
+      user: const AppUser(id: 'a', firstName: 'Admin', email: 'e', role: AppRole.admin),
+    );
+    // Dans l'application, la boutique est affichée dans l'écran (Scaffold) de l'espace propriétaire.
+    await _show(
+      tester,
+      const Scaffold(body: ShopScreen()),
+      session: admin,
+      shop: _EmptyShop(),
+      size: const Size(900, 1400),
+    );
+    expect(find.text('Gérer la boutique'), findsOneWidget);
+
+    final owner = AuthSession.isolated();
+    await owner.open(
+      token: 'j',
+      user: const AppUser(id: 'o', firstName: 'Amira', email: 'e', role: AppRole.owner),
+    );
+    await _show(
+      tester,
+      const Scaffold(body: ShopScreen()),
+      session: owner,
+      shop: _EmptyShop(),
+      size: const Size(900, 1400),
+    );
+    expect(find.text('Gérer la boutique'), findsNothing);
   });
 
   testWidgets('produit épuisé : ajout impossible', (tester) async {

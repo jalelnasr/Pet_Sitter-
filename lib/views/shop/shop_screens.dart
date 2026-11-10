@@ -131,6 +131,28 @@ class _ShopScreenState extends State<ShopScreen> {
               ],
             ),
           ).from(y: -14, duration: 0.5),
+          // L'administrateur voit la boutique comme un client, avec un accès direct à sa gestion.
+          if (Deps.of(context).session.user?.isAdmin == true)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                decoration: BoxDecoration(color: LP.mintPale, borderRadius: BorderRadius.circular(LP.r16)),
+                child: Row(
+                  children: [
+                    const Icon(PhosphorIconsRegular.shieldCheck, size: 20, color: LP.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text('Mode administrateur', style: LPText.label.copyWith(color: LP.primaryDark)),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pushNamed(context, R.storeAdmin),
+                      child: const Text('Gérer la boutique'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: TextField(
