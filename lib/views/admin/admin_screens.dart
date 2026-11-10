@@ -24,16 +24,20 @@ void _toast(BuildContext context, String message) {
     ..showSnackBar(SnackBar(content: Text(message)));
 }
 
-/// Administration de la boutique : Commandes, Produits, Ventes. Ouverte depuis le profil d'un administrateur.
+/// Administration de la boutique : Commandes, Produits, Ventes.
+/// Ouverte depuis les actions de la boutique ou le profil d'un administrateur.
 class AdminShell extends StatefulWidget {
-  const AdminShell({super.key});
+  const AdminShell({super.key, this.initialTab = 0});
+
+  /// 0 : commandes, 1 : produits, 2 : ventes.
+  final int initialTab;
 
   @override
   State<AdminShell> createState() => _AdminShellState();
 }
 
 class _AdminShellState extends State<AdminShell> {
-  int _tab = 0;
+  late int _tab = widget.initialTab;
 
   static const _items = [
     NavItem(PhosphorIconsRegular.shoppingBag, PhosphorIconsFill.shoppingBag, 'Commandes'),
@@ -55,31 +59,6 @@ class _AdminShellState extends State<AdminShell> {
         },
       ),
       bottomNavigationBar: FloatingNav(items: _items, index: _tab, onTap: (i) => setState(() => _tab = i)),
-    );
-  }
-}
-
-/// Gestion de la boutique dans l'onglet « Boutique » d'un administrateur : onglets en haut,
-/// pour ne pas ajouter une seconde barre de navigation sous celle de l'application.
-class StoreAdminPanel extends StatelessWidget {
-  const StoreAdminPanel({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const DefaultTabController(
-      length: 3,
-      child: Column(
-        children: [
-          TabBar(
-            tabs: [
-              Tab(text: 'Commandes'),
-              Tab(text: 'Produits'),
-              Tab(text: 'Ventes'),
-            ],
-          ),
-          Expanded(child: TabBarView(children: [_OrdersTab(), _ProductsTab(), SalesTab()])),
-        ],
-      ),
     );
   }
 }

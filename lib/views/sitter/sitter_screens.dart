@@ -756,7 +756,7 @@ class _SitterAccount extends StatelessWidget {
             icon: PhosphorIconsRegular.storefront,
             title: 'Boutique',
             subtitle: 'Nourriture et accessoires',
-            onTap: () => Navigator.pushNamed(context, R.shop),
+            onTap: () => Navigator.pushNamed(context, R.shopPage),
           ),
           LPListTile(
             icon: PhosphorIconsRegular.shoppingBag,

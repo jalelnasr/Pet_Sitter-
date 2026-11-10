@@ -107,34 +107,8 @@ class _ShopScreenState extends State<ShopScreen> {
   Widget build(BuildContext context) => ListenableBuilder(listenable: vm, builder: (context, _) => _content(context));
 
   Widget _content(BuildContext context) {
-    // Un administrateur gère la boutique : l'onglet lui montre la gestion, pas le catalogue client.
-    if (Deps.of(context).session.user?.isAdmin == true) {
-      return SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Boutique', style: LPText.display(size: 32, w: FontWeight.w700)),
-                        Text('Gestion : commandes, produits et ventes', style: LPText.bodyS.copyWith(fontSize: 14)),
-                      ],
-                    ),
-                  ),
-                  const Icon(PhosphorIconsRegular.shieldCheck, color: LP.primary),
-                ],
-              ),
-            ),
-            const Expanded(child: StoreAdminPanel()),
-          ],
-        ),
-      );
-    }
+    final user = Deps.of(context).session.user;
+    final isAdmin = user?.isAdmin == true;
     final items = vm.products;
     final myPets = vm.myPets;
     final recommended = vm.recommended;
@@ -156,10 +130,44 @@ class _ShopScreenState extends State<ShopScreen> {
                     ],
                   ),
                 ),
-                const CartButton(),
+                // Un administrateur ne commande pas : pas de panier (comme « Publier » absent de l'adoption).
+                if (!isAdmin) const CartButton(),
               ],
             ),
           ).from(y: -14, duration: 0.5),
+          // Même page pour tous les rôles ; seules les actions changent, comme dans les autres modules.
+          if (user != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (isAdmin) ...[
+                    _StorePill(
+                      label: 'Commandes',
+                      icon: PhosphorIconsRegular.shoppingBag,
+                      onTap: () => _openAdmin(context, 0),
+                    ),
+                    _StorePill(
+                      label: 'Produits',
+                      icon: PhosphorIconsRegular.storefront,
+                      onTap: () => _openAdmin(context, 1),
+                    ),
+                    _StorePill(
+                      label: 'Ventes',
+                      icon: PhosphorIconsRegular.chartBar,
+                      onTap: () => _openAdmin(context, 2),
+                    ),
+                  ] else
+                    _StorePill(
+                      label: 'Mes commandes',
+                      icon: PhosphorIconsRegular.notepad,
+                      onTap: () => Navigator.pushNamed(context, R.myOrders),
+                    ),
+                ],
+              ),
+            ).from(y: 10, delay: 0.04),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: TextField(
@@ -313,6 +321,57 @@ class _ShopScreenState extends State<ShopScreen> {
             style: LPText.bodyS.copyWith(fontSize: 12.5, color: LP.faint),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Gestion de la boutique sur une page à part, comme la « Modération » de l'adoption.
+void _openAdmin(BuildContext context, int tab) {
+  Navigator.of(context).push(MaterialPageRoute(builder: (_) => AdminShell(initialTab: tab)));
+}
+
+/// Boutique ouverte hors de l'espace propriétaire (ex. : depuis l'espace pet sitter), avec retour.
+class ShopPage extends StatelessWidget {
+  const ShopPage({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(leading: const BackButton()),
+    body: const ShopScreen(),
+  );
+}
+
+/// Action de la boutique, même style que les pastilles des autres modules.
+class _StorePill extends StatelessWidget {
+  const _StorePill({required this.label, required this.icon, required this.onTap});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: LP.white,
+      shape: const StadiumBorder(side: BorderSide(color: LP.softDeep, width: 1.2)),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: LP.primary),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: LPText.body(size: 13.5, w: FontWeight.w700, color: LP.ink),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

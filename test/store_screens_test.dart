@@ -291,7 +291,7 @@ void main() {
     expect(find.text('Croquettes chat stérilisé'), findsOneWidget);
   });
 
-  testWidgets('boutique : l\'administrateur voit la gestion, le client voit le catalogue', (tester) async {
+  testWidgets('boutique : même page pour tous, actions selon le rôle', (tester) async {
     final admin = AuthSession.isolated();
     await admin.open(
       token: 'j',
@@ -305,11 +305,22 @@ void main() {
       shop: _EmptyShop(),
       size: const Size(900, 1400),
     );
-    expect(find.text('Gestion : commandes, produits et ventes'), findsOneWidget);
-    expect(find.widgetWithText(Tab, 'Ventes'), findsOneWidget);
-    expect(find.textContaining('PS-10001'), findsOneWidget);
+    // Administrateur : catalogue commun, actions de gestion, pas de panier.
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Commandes'), findsOneWidget);
+    expect(find.text('Produits'), findsOneWidget);
+    expect(find.text('Ventes'), findsOneWidget);
+    expect(find.text('Mes commandes'), findsNothing);
     expect(find.byType(CartButton), findsNothing);
 
+    // La gestion s'ouvre sur une page à part, sur l'onglet choisi.
+    await tester.tap(find.text('Ventes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Espace admin'), findsOneWidget);
+    expect(find.textContaining('12 840 DT'), findsOneWidget);
+  });
+
+  testWidgets('boutique : le client voit le même catalogue, ses commandes et son panier', (tester) async {
     final owner = AuthSession.isolated();
     await owner.open(
       token: 'j',
@@ -322,7 +333,10 @@ void main() {
       shop: _EmptyShop(),
       size: const Size(900, 1400),
     );
-    expect(find.text('Gestion : commandes, produits et ventes'), findsNothing);
+    // Client : même catalogue, ses commandes et son panier, aucune action de gestion.
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Mes commandes'), findsOneWidget);
+    expect(find.text('Ventes'), findsNothing);
     expect(find.byType(CartButton), findsOneWidget);
   });
 
