@@ -50,5 +50,3 @@ app.*.map.json
 backend/mail.properties
 mail.properties
 
-# Clé Gemini locale de la boutique (jamais dans Git)
-gemini.local.json
